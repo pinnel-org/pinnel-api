@@ -5,10 +5,8 @@ import lombok.RequiredArgsConstructor;
 import org.pinnel.pinnelapi.dto.UserDto;
 import org.pinnel.pinnelapi.entity.UserEntity;
 import org.pinnel.pinnelapi.repository.UserRepository;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @RequiredArgsConstructor
@@ -16,30 +14,40 @@ public class UserService {
 
     private final UserRepository userRepository;
 
-    /** Returns the current user's profile. Throws 404 if no user with the given Cognito id exists. */
-    public UserDto getCurrentUser(String cognitoId) {
-        return UserDto.from(getUser(cognitoId));
+    /** Returns the existing user for the given Cognito id, or just-in-time creates one populated from the supplied email and username. */
+    @Transactional
+    public UserEntity findOrCreateByCognitoId(String cognitoId, String email, String username) {
+        return userRepository.findByCognitoId(cognitoId)
+                .orElseGet(() -> {
+                    Instant now = Instant.now();
+                    return userRepository.save(UserEntity.builder()
+                            .cognitoId(cognitoId)
+                            .email(email)
+                            .username(username)
+                            .createdAt(now)
+                            .updatedAt(now)
+                            .build());
+                });
     }
 
-    /** Applies the editable fields (username, displayName, bio) from the request to the current user and bumps updatedAt. Throws 404 if the user does not exist. */
+    /** Returns the current user's profile. */
+    public UserDto getCurrentUser(UserEntity user) {
+        return UserDto.from(user);
+    }
+
+    /** Applies the editable fields (username, displayName, bio) from the request to the current user and bumps updatedAt. */
     @Transactional
-    public UserDto updateCurrentUser(String cognitoId, UserDto update) {
-        UserEntity user = getUser(cognitoId);
+    public UserDto updateCurrentUser(UserEntity user, UserDto update) {
         user.setUsername(update.username());
         user.setDisplayName(update.displayName());
         user.setBio(update.bio());
         user.setUpdatedAt(Instant.now());
-        return UserDto.from(user);
+        return UserDto.from(userRepository.save(user));
     }
 
-    /** Deletes the current user. Idempotent — does nothing if the user does not exist. */
+    /** Deletes the current user. Idempotent — does nothing if the user has already been deleted. */
     @Transactional
-    public void deleteCurrentUser(String cognitoId) {
-        userRepository.deleteByCognitoId(cognitoId);
-    }
-
-    private UserEntity getUser(String cognitoId) {
-        return userRepository.findByCognitoId(cognitoId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+    public void deleteCurrentUser(UserEntity user) {
+        userRepository.deleteById(user.getId());
     }
 }

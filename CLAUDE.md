@@ -10,7 +10,7 @@ The repo is currently a freshly bootstrapped Spring Boot skeleton — no control
 
 ## Stack
 
-- Java 21, Spring Boot **4.0.6** (note: 4.x, not 3.x — APIs and starter coordinates differ; e.g. `spring-boot-starter-webmvc` instead of `spring-boot-starter-web`, `spring-boot-h2console` as a dedicated starter)
+- Java 21, Spring Boot **4.0.6** (note: 4.x, not 3.x — APIs and starter coordinates differ; e.g. `spring-boot-starter-webmvc` instead of `spring-boot-starter-web`, `spring-boot-h2console` as a dedicated starter, and several test annotations have moved packages — e.g. `@AutoConfigureMockMvc` is now `org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc`, **not** the 3.x `org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc`)
 - Spring Data JPA + Spring Web MVC
 - PostgreSQL (prod, runtime-scoped) and H2 (local default, runtime-scoped) — both drivers are on the classpath; selection is via `application.properties` / profile config
 - Lombok (annotation processor wired in `pom.xml`)
@@ -40,6 +40,8 @@ Quote `-D...` args in PowerShell so the shell does not eat the `=`.
   - `repository/` — Spring Data repository interfaces
   - `entity/` — `@Entity` classes (suffix `Entity`, e.g. `UserEntity`)
   - `dto/` — DTOs (suffix `Dto`, e.g. `UserDto`). One DTO per resource, used for both input and output — see Conventions below.
+  - `auth/` — cross-cutting auth infrastructure: filters, request-scoped argument resolvers, `@CurrentUser`, `CognitoHeadersProperties`. Authentication is performed by AWS Cognito + API Gateway upstream; the backend trusts forwarded headers.
+  - `config/` — Spring `@Configuration` classes (e.g. `WebConfig` registers argument resolvers and enables `@ConfigurationProperties` beans).
 - Config lives in `src/main/resources/application.properties`. The H2 console is enabled at `/h2-console`; `spring.jpa.show-sql` is on for dev.
 - Tests under `src/test/java/...` mirror main packages; the only existing test is a `@SpringBootTest` context-load smoke test.
 
