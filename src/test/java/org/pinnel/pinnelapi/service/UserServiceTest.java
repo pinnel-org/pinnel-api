@@ -1,11 +1,11 @@
 package org.pinnel.pinnelapi.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import java.time.Instant;
 import java.util.Optional;
@@ -18,8 +18,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.pinnel.pinnelapi.dto.UserDto;
 import org.pinnel.pinnelapi.entity.UserEntity;
 import org.pinnel.pinnelapi.repository.UserRepository;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.server.ResponseStatusException;
 
 @ExtendWith(MockitoExtension.class)
 class UserServiceTest {
@@ -51,10 +49,32 @@ class UserServiceTest {
     }
 
     @Test
-    void getCurrentUserReturnsDto() {
+    void findOrCreateReturnsExistingWhenFound() {
         given(userRepository.findByCognitoId(COGNITO_ID)).willReturn(Optional.of(existing));
 
-        UserDto result = userService.getCurrentUser(COGNITO_ID);
+        UserEntity result = userService.findOrCreateByCognitoId(COGNITO_ID, "ignored@pinnel.io", "ignored");
+
+        assertThat(result).isSameAs(existing);
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void findOrCreateCreatesNewUserWhenNotFound() {
+        given(userRepository.findByCognitoId(COGNITO_ID)).willReturn(Optional.empty());
+        given(userRepository.save(any(UserEntity.class))).willAnswer(inv -> inv.getArgument(0));
+
+        UserEntity result = userService.findOrCreateByCognitoId(COGNITO_ID, "new@pinnel.io", "newuser");
+
+        assertThat(result.getCognitoId()).isEqualTo(COGNITO_ID);
+        assertThat(result.getEmail()).isEqualTo("new@pinnel.io");
+        assertThat(result.getUsername()).isEqualTo("newuser");
+        assertThat(result.getCreatedAt()).isNotNull();
+        assertThat(result.getUpdatedAt()).isNotNull();
+    }
+
+    @Test
+    void getCurrentUserMapsEntityToDtoWithoutTouchingRepository() {
+        UserDto result = userService.getCurrentUser(existing);
 
         assertThat(result.id()).isEqualTo(USER_ID);
         assertThat(result.cognitoId()).isEqualTo(COGNITO_ID);
@@ -64,20 +84,12 @@ class UserServiceTest {
         assertThat(result.bio()).isEqualTo("hi");
         assertThat(result.createdAt()).isEqualTo(ORIGINAL_TIMESTAMP);
         assertThat(result.updatedAt()).isEqualTo(ORIGINAL_TIMESTAMP);
-    }
-
-    @Test
-    void getCurrentUserThrowsNotFoundWhenMissing() {
-        given(userRepository.findByCognitoId(COGNITO_ID)).willReturn(Optional.empty());
-
-        assertThatThrownBy(() -> userService.getCurrentUser(COGNITO_ID))
-                .isInstanceOfSatisfying(ResponseStatusException.class,
-                        ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
+        verifyNoInteractions(userRepository);
     }
 
     @Test
     void updateCurrentUserAppliesEditableFieldsAndBumpsUpdatedAt() {
-        given(userRepository.findByCognitoId(COGNITO_ID)).willReturn(Optional.of(existing));
+        given(userRepository.save(existing)).willAnswer(inv -> inv.getArgument(0));
 
         UserDto update = new UserDto(
                 null, null, null,
@@ -85,7 +97,7 @@ class UserServiceTest {
                 null, null
         );
 
-        UserDto result = userService.updateCurrentUser(COGNITO_ID, update);
+        UserDto result = userService.updateCurrentUser(existing, update);
 
         assertThat(existing.getUsername()).isEqualTo("alice2");
         assertThat(existing.getDisplayName()).isEqualTo("Alice 2.0");
@@ -94,14 +106,12 @@ class UserServiceTest {
 
         assertThat(result.id()).isEqualTo(USER_ID);
         assertThat(result.username()).isEqualTo("alice2");
-        assertThat(result.displayName()).isEqualTo("Alice 2.0");
-        assertThat(result.bio()).isEqualTo("new bio");
         assertThat(result.updatedAt()).isAfter(ORIGINAL_TIMESTAMP);
     }
 
     @Test
     void updateCurrentUserIgnoresIdentityAndTimestampFieldsFromBody() {
-        given(userRepository.findByCognitoId(COGNITO_ID)).willReturn(Optional.of(existing));
+        given(userRepository.save(existing)).willAnswer(inv -> inv.getArgument(0));
 
         UserDto malicious = new UserDto(
                 999L,
@@ -112,7 +122,7 @@ class UserServiceTest {
                 Instant.parse("1999-01-01T00:00:00Z")
         );
 
-        userService.updateCurrentUser(COGNITO_ID, malicious);
+        userService.updateCurrentUser(existing, malicious);
 
         assertThat(existing.getId()).isEqualTo(USER_ID);
         assertThat(existing.getCognitoId()).isEqualTo(COGNITO_ID);
@@ -121,20 +131,10 @@ class UserServiceTest {
     }
 
     @Test
-    void updateCurrentUserThrowsNotFoundWhenMissing() {
-        given(userRepository.findByCognitoId(COGNITO_ID)).willReturn(Optional.empty());
-        UserDto update = new UserDto(null, null, null, "x", "X", "x", null, null);
+    void deleteCurrentUserCallsDeleteByIdWithoutPreCheck() {
+        userService.deleteCurrentUser(existing);
 
-        assertThatThrownBy(() -> userService.updateCurrentUser(COGNITO_ID, update))
-                .isInstanceOfSatisfying(ResponseStatusException.class,
-                        ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
-    }
-
-    @Test
-    void deleteCurrentUserDelegatesWithoutPreCheck() {
-        userService.deleteCurrentUser(COGNITO_ID);
-
-        verify(userRepository).deleteByCognitoId(COGNITO_ID);
+        verify(userRepository).deleteById(USER_ID);
         verify(userRepository, never()).existsById(any());
     }
 }
