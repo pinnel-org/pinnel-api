@@ -1,6 +1,11 @@
-package org.pinnel.pinnelapi.user;
+package org.pinnel.pinnelapi.service;
 
+import java.time.Instant;
 import lombok.RequiredArgsConstructor;
+import org.pinnel.pinnelapi.dto.UpdateUserDto;
+import org.pinnel.pinnelapi.dto.UserDto;
+import org.pinnel.pinnelapi.entity.UserEntity;
+import org.pinnel.pinnelapi.repository.UserRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,29 +17,25 @@ public class UserService {
 
     private final UserRepository userRepository;
 
-    @Transactional(readOnly = true)
     public UserDto getCurrentUser(String cognitoSub) {
-        return UserDto.from(loadUser(cognitoSub));
+        return UserDto.from(getUser(cognitoSub));
     }
 
     @Transactional
     public UserDto updateCurrentUser(String cognitoSub, UpdateUserDto update) {
-        UserEntity user = loadUser(cognitoSub);
-        if (update.username() != null) user.setUsername(update.username());
-        if (update.displayName() != null) user.setDisplayName(update.displayName());
-        if (update.bio() != null) user.setBio(update.bio());
+        UserEntity user = getUser(cognitoSub);
+        user.setUsername(update.username());
+        user.setDisplayName(update.displayName());
+        user.setBio(update.bio());
+        user.setUpdatedAt(Instant.now());
         return UserDto.from(user);
     }
 
-    @Transactional
     public void deleteCurrentUser(String cognitoSub) {
-        if (!userRepository.existsById(cognitoSub)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND);
-        }
         userRepository.deleteById(cognitoSub);
     }
 
-    private UserEntity loadUser(String cognitoSub) {
+    private UserEntity getUser(String cognitoSub) {
         return userRepository.findById(cognitoSub)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
     }

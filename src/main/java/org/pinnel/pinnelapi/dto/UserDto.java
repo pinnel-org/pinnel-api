@@ -1,6 +1,7 @@
-package org.pinnel.pinnelapi.user;
+package org.pinnel.pinnelapi.dto;
 
 import java.time.Instant;
+import org.pinnel.pinnelapi.entity.UserEntity;
 
 public record UserDto(
         String cognitoSub,

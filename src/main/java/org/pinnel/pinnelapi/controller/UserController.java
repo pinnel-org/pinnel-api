@@ -1,6 +1,10 @@
-package org.pinnel.pinnelapi.user;
+package org.pinnel.pinnelapi.controller;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.pinnel.pinnelapi.dto.UpdateUserDto;
+import org.pinnel.pinnelapi.dto.UserDto;
+import org.pinnel.pinnelapi.service.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -29,7 +33,7 @@ public class UserController {
     @PutMapping
     public UserDto updateCurrent(
             @RequestHeader(COGNITO_SUB_HEADER) String cognitoSub,
-            @RequestBody UpdateUserDto update) {
+            @Valid @RequestBody UpdateUserDto update) {
         return userService.updateCurrentUser(cognitoSub, update);
     }
 

@@ -34,11 +34,24 @@ Quote `-D...` args in PowerShell so the shell does not eat the `=`.
 
 - Single Maven module rooted at `pom.xml`. Base package is `org.pinnel.pinnelapi`.
 - Entry point: `src/main/java/org/pinnel/pinnelapi/PinnelApi1Application.java` (`@SpringBootApplication`). The `Api1` suffix is incidental from the Spring Initializr scaffold; treat it as the canonical app class until renamed.
-- Config lives in `src/main/resources/application.properties`. Currently only `spring.application.name` is set — there is no datasource config yet, so the app falls back to the embedded H2.
+- **Layer-based package structure** (not feature-packages). Drop new classes into the matching layer package:
+  - `controller/` — `@RestController` classes
+  - `service/` — `@Service` classes
+  - `repository/` — Spring Data repository interfaces
+  - `entity/` — `@Entity` classes (suffix `Entity`, e.g. `UserEntity`)
+  - `dto/` — request and response DTOs (suffix `Dto`, e.g. `UserDto`, `UpdateUserDto`)
+- Config lives in `src/main/resources/application.properties`. The H2 console is enabled at `/h2-console`; `spring.jpa.show-sql` is on for dev.
 - Tests under `src/test/java/...` mirror main packages; the only existing test is a `@SpringBootTest` context-load smoke test.
 
 ## Conventions to honor when adding code
 
-- Prefer Lombok (`@Getter`/`@Setter`/`@RequiredArgsConstructor`/`@Slf4j`) — it's already wired through the compiler plugin's `annotationProcessorPaths`, and the `spring-boot-maven-plugin` is configured to exclude Lombok from the repackaged jar.
-- Use constructor injection (works naturally with `@RequiredArgsConstructor`); avoid field injection.
-- For new persistence code, use Spring Data JPA repositories. Test slices: `@DataJpaTest` (provided by `spring-boot-starter-data-jpa-test`) and `@WebMvcTest` (provided by `spring-boot-starter-webmvc-test`) — prefer slices over full `@SpringBootTest` where possible.
+- **Naming.** Entities end with `Entity` (`UserEntity`), DTOs end with `Dto` (`UserDto`, `UpdateUserDto`). One canonical `<Resource>Dto` per resource for responses; add `Update<Resource>Dto` / `Create<Resource>Dto` only when input fields actually differ from the response (e.g. omitting identity / server-managed fields). Never use `*Request` / `*Response` suffixes.
+- **Validation lives on the DTO, not in the service.** Annotate write-DTO fields with Jakarta constraints (`@NotNull`, `@NotBlank`, `@Size`, …) and put `@Valid` on the controller's `@RequestBody` parameter (`spring-boot-starter-validation` is on the classpath). The service must not do `if (dto.x() != null)` guards — assume validated input. Practical consequence: PUT bodies use strict-replace semantics (every field required); to clear a free-text field, the client sends `""`, so reserve `@NotBlank` for fields that must always carry content.
+- **Service-layer rules.**
+  - No `@Transactional` on simple read methods — Spring Data already runs the repo call in a transaction. Annotate `@Transactional` only when the service does multiple repo calls or relies on dirty-checking after `findById` (update flows).
+  - `deleteById` is idempotent — do **not** guard it with `existsById` and a 404. Just call `deleteById`.
+  - Name private lookup helpers `getX`, not `loadX`.
+  - Manage entity timestamps (`createdAt`, `updatedAt`) explicitly in the service, not via `@PrePersist` / `@PreUpdate` lifecycle callbacks.
+- **Lombok** is already wired (annotation processor in the compiler plugin, excluded from the repackaged jar). Prefer `@Getter` / `@Setter` / `@RequiredArgsConstructor` / `@Slf4j`. Use constructor injection via `@RequiredArgsConstructor`; never field injection.
+- **Persistence.** Spring Data JPA repositories. Test slices: `@DataJpaTest` and `@WebMvcTest` — prefer slices over full `@SpringBootTest` where possible.
+- **Git workflow.** Every backlog issue gets its own branch (`feat/<slug>`) off `main`; finish by opening a PR back to `main` (`gh pr create`). Don't commit task work directly to `main`.
