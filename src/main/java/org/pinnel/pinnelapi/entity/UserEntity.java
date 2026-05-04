@@ -2,6 +2,8 @@ package org.pinnel.pinnelapi.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
@@ -21,8 +23,11 @@ import lombok.Setter;
 public class UserEntity {
 
     @Id
-    @Column(name = "cognito_sub", nullable = false, updatable = false)
-    private String cognitoSub;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "cognito_id", nullable = false, unique = true, updatable = false)
+    private String cognitoId;
 
     @Column(nullable = false, unique = true)
     private String email;

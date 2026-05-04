@@ -19,29 +19,29 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class UserController {
 
-    // TODO(#2): replace X-Cognito-Sub header with the auth interceptor's resolved principal.
-    private static final String COGNITO_SUB_HEADER = "X-Cognito-Sub";
+    // TODO(#2): replace X-Cognito-Id header with the auth interceptor's resolved principal.
+    private static final String COGNITO_ID_HEADER = "X-Cognito-Id";
 
     private final UserService userService;
 
     /** GET /api/me — returns the authenticated user's profile. */
     @GetMapping
-    public UserDto getCurrent(@RequestHeader(COGNITO_SUB_HEADER) String cognitoSub) {
-        return userService.getCurrentUser(cognitoSub);
+    public UserDto getCurrent(@RequestHeader(COGNITO_ID_HEADER) String cognitoId) {
+        return userService.getCurrentUser(cognitoId);
     }
 
     /** PUT /api/me — strict-replace update of the authenticated user's editable fields (username, displayName, bio). */
     @PutMapping
     public UserDto updateCurrent(
-            @RequestHeader(COGNITO_SUB_HEADER) String cognitoSub,
+            @RequestHeader(COGNITO_ID_HEADER) String cognitoId,
             @Valid @RequestBody UserDto update) {
-        return userService.updateCurrentUser(cognitoSub, update);
+        return userService.updateCurrentUser(cognitoId, update);
     }
 
     /** DELETE /api/me — deletes the authenticated user's account. Returns 204. Idempotent. */
     @DeleteMapping
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteCurrent(@RequestHeader(COGNITO_SUB_HEADER) String cognitoSub) {
-        userService.deleteCurrentUser(cognitoSub);
+    public void deleteCurrent(@RequestHeader(COGNITO_ID_HEADER) String cognitoId) {
+        userService.deleteCurrentUser(cognitoId);
     }
 }

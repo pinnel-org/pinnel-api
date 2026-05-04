@@ -16,15 +16,15 @@ public class UserService {
 
     private final UserRepository userRepository;
 
-    /** Returns the current user's profile. Throws 404 if no user with the given Cognito sub exists. */
-    public UserDto getCurrentUser(String cognitoSub) {
-        return UserDto.from(getUser(cognitoSub));
+    /** Returns the current user's profile. Throws 404 if no user with the given Cognito id exists. */
+    public UserDto getCurrentUser(String cognitoId) {
+        return UserDto.from(getUser(cognitoId));
     }
 
     /** Applies the editable fields (username, displayName, bio) from the request to the current user and bumps updatedAt. Throws 404 if the user does not exist. */
     @Transactional
-    public UserDto updateCurrentUser(String cognitoSub, UserDto update) {
-        UserEntity user = getUser(cognitoSub);
+    public UserDto updateCurrentUser(String cognitoId, UserDto update) {
+        UserEntity user = getUser(cognitoId);
         user.setUsername(update.username());
         user.setDisplayName(update.displayName());
         user.setBio(update.bio());
@@ -33,12 +33,13 @@ public class UserService {
     }
 
     /** Deletes the current user. Idempotent — does nothing if the user does not exist. */
-    public void deleteCurrentUser(String cognitoSub) {
-        userRepository.deleteById(cognitoSub);
+    @Transactional
+    public void deleteCurrentUser(String cognitoId) {
+        userRepository.deleteByCognitoId(cognitoId);
     }
 
-    private UserEntity getUser(String cognitoSub) {
-        return userRepository.findById(cognitoSub)
+    private UserEntity getUser(String cognitoId) {
+        return userRepository.findByCognitoId(cognitoId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
     }
 }

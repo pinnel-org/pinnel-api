@@ -7,7 +7,8 @@ import java.time.Instant;
 import org.pinnel.pinnelapi.entity.UserEntity;
 
 public record UserDto(
-        String cognitoSub,
+        Long id,
+        String cognitoId,
         String email,
         @NotBlank @Size(max = 50) String username,
         @NotNull @Size(max = 100) String displayName,
@@ -17,7 +18,8 @@ public record UserDto(
 ) {
     public static UserDto from(UserEntity user) {
         return new UserDto(
-                user.getCognitoSub(),
+                user.getId(),
+                user.getCognitoId(),
                 user.getEmail(),
                 user.getUsername(),
                 user.getDisplayName(),
