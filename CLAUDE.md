@@ -52,6 +52,7 @@ Quote `-D...` args in PowerShell so the shell does not eat the `=`.
   - `deleteById` is idempotent — do **not** guard it with `existsById` and a 404. Just call `deleteById`.
   - Name private lookup helpers `getX`, not `loadX`.
   - Manage entity timestamps (`createdAt`, `updatedAt`) explicitly in the service, not via `@PrePersist` / `@PreUpdate` lifecycle callbacks.
+- **JavaDoc on public methods.** Every public method on a service, controller, or other layer-consumed class gets a one-line `/** ... */` JavaDoc — describe return value / side effects / when it throws. Private helpers and tests are exempt; trivial DTO record components / factory methods are exempt.
 - **Lombok** is already wired (annotation processor in the compiler plugin, excluded from the repackaged jar). Prefer `@Getter` / `@Setter` / `@RequiredArgsConstructor` / `@Slf4j`. Use constructor injection via `@RequiredArgsConstructor`; never field injection.
 - **Persistence.** Spring Data JPA repositories. Test slices: `@DataJpaTest` and `@WebMvcTest` — prefer slices over full `@SpringBootTest` where possible.
 - **Git workflow.** Every backlog issue gets its own branch (`feat/<slug>`) off `main`; finish by opening a PR back to `main` (`gh pr create`). Don't commit task work directly to `main`.

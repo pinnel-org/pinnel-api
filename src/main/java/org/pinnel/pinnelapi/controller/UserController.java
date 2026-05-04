@@ -24,11 +24,13 @@ public class UserController {
 
     private final UserService userService;
 
+    /** GET /api/me — returns the authenticated user's profile. */
     @GetMapping
     public UserDto getCurrent(@RequestHeader(COGNITO_SUB_HEADER) String cognitoSub) {
         return userService.getCurrentUser(cognitoSub);
     }
 
+    /** PUT /api/me — strict-replace update of the authenticated user's editable fields (username, displayName, bio). */
     @PutMapping
     public UserDto updateCurrent(
             @RequestHeader(COGNITO_SUB_HEADER) String cognitoSub,
@@ -36,6 +38,7 @@ public class UserController {
         return userService.updateCurrentUser(cognitoSub, update);
     }
 
+    /** DELETE /api/me — deletes the authenticated user's account. Returns 204. Idempotent. */
     @DeleteMapping
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteCurrent(@RequestHeader(COGNITO_SUB_HEADER) String cognitoSub) {
