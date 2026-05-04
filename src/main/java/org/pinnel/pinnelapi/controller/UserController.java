@@ -2,7 +2,6 @@ package org.pinnel.pinnelapi.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.pinnel.pinnelapi.dto.UpdateUserDto;
 import org.pinnel.pinnelapi.dto.UserDto;
 import org.pinnel.pinnelapi.service.UserService;
 import org.springframework.http.HttpStatus;
@@ -33,7 +32,7 @@ public class UserController {
     @PutMapping
     public UserDto updateCurrent(
             @RequestHeader(COGNITO_SUB_HEADER) String cognitoSub,
-            @Valid @RequestBody UpdateUserDto update) {
+            @Valid @RequestBody UserDto update) {
         return userService.updateCurrentUser(cognitoSub, update);
     }
 

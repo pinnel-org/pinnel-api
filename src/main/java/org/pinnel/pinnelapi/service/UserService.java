@@ -2,7 +2,6 @@ package org.pinnel.pinnelapi.service;
 
 import java.time.Instant;
 import lombok.RequiredArgsConstructor;
-import org.pinnel.pinnelapi.dto.UpdateUserDto;
 import org.pinnel.pinnelapi.dto.UserDto;
 import org.pinnel.pinnelapi.entity.UserEntity;
 import org.pinnel.pinnelapi.repository.UserRepository;
@@ -22,7 +21,7 @@ public class UserService {
     }
 
     @Transactional
-    public UserDto updateCurrentUser(String cognitoSub, UpdateUserDto update) {
+    public UserDto updateCurrentUser(String cognitoSub, UserDto update) {
         UserEntity user = getUser(cognitoSub);
         user.setUsername(update.username());
         user.setDisplayName(update.displayName());

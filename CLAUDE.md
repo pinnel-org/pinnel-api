@@ -39,14 +39,14 @@ Quote `-D...` args in PowerShell so the shell does not eat the `=`.
   - `service/` — `@Service` classes
   - `repository/` — Spring Data repository interfaces
   - `entity/` — `@Entity` classes (suffix `Entity`, e.g. `UserEntity`)
-  - `dto/` — request and response DTOs (suffix `Dto`, e.g. `UserDto`, `UpdateUserDto`)
+  - `dto/` — DTOs (suffix `Dto`, e.g. `UserDto`). One DTO per resource, used for both input and output — see Conventions below.
 - Config lives in `src/main/resources/application.properties`. The H2 console is enabled at `/h2-console`; `spring.jpa.show-sql` is on for dev.
 - Tests under `src/test/java/...` mirror main packages; the only existing test is a `@SpringBootTest` context-load smoke test.
 
 ## Conventions to honor when adding code
 
-- **Naming.** Entities end with `Entity` (`UserEntity`), DTOs end with `Dto` (`UserDto`, `UpdateUserDto`). One canonical `<Resource>Dto` per resource for responses; add `Update<Resource>Dto` / `Create<Resource>Dto` only when input fields actually differ from the response (e.g. omitting identity / server-managed fields). Never use `*Request` / `*Response` suffixes.
-- **Validation lives on the DTO, not in the service.** Annotate write-DTO fields with Jakarta constraints (`@NotNull`, `@NotBlank`, `@Size`, …) and put `@Valid` on the controller's `@RequestBody` parameter (`spring-boot-starter-validation` is on the classpath). The service must not do `if (dto.x() != null)` guards — assume validated input. Practical consequence: PUT bodies use strict-replace semantics (every field required); to clear a free-text field, the client sends `""`, so reserve `@NotBlank` for fields that must always carry content.
+- **Naming and DTO shape.** Entities end with `Entity` (`UserEntity`). DTOs end with `Dto` and there is **exactly one DTO per resource**, used for both request and response (no `Update*Dto`, `Create*Dto`, `*Request`, or `*Response` variants). Server-managed / identity fields (`cognitoSub`, `createdAt`, `updatedAt`, …) live on the same DTO, are returned in responses, and are silently ignored on input — the service explicitly reads each editable field by name, so identity/timestamp fields cannot be propagated from request to entity.
+- **Validation lives on the DTO, not in the service.** Annotate only the **user-editable** fields with Jakarta constraints (`@NotNull`, `@NotBlank`, `@Size`, …) — leave identity/timestamp fields un-annotated so clients aren't required to send them on input. Put `@Valid` on the controller's `@RequestBody` parameter (`spring-boot-starter-validation` is on the classpath). The service must not do `if (dto.x() != null)` guards — assume validated input. Practical consequence: PUT bodies use strict-replace semantics (every editable field required); to clear a free-text field, the client sends `""`, so reserve `@NotBlank` for fields that must always carry content.
 - **Service-layer rules.**
   - No `@Transactional` on simple read methods — Spring Data already runs the repo call in a transaction. Annotate `@Transactional` only when the service does multiple repo calls or relies on dirty-checking after `findById` (update flows).
   - `deleteById` is idempotent — do **not** guard it with `existsById` and a 404. Just call `deleteById`.

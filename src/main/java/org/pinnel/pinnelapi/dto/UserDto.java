@@ -1,14 +1,17 @@
 package org.pinnel.pinnelapi.dto;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.time.Instant;
 import org.pinnel.pinnelapi.entity.UserEntity;
 
 public record UserDto(
         String cognitoSub,
         String email,
-        String username,
-        String displayName,
-        String bio,
+        @NotBlank @Size(max = 50) String username,
+        @NotNull @Size(max = 100) String displayName,
+        @NotNull @Size(max = 500) String bio,
         Instant createdAt,
         Instant updatedAt
 ) {
