@@ -17,12 +17,15 @@ public class UserService {
     private final UserRepository userRepository;
 
     public UserDto getCurrentUser(String cognitoSub) {
-        return UserDto.from(getUser(cognitoSub));
+        UserEntity user = userRepository.findById(cognitoSub)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        return UserDto.from(user);
     }
 
     @Transactional
     public UserDto updateCurrentUser(String cognitoSub, UserDto update) {
-        UserEntity user = getUser(cognitoSub);
+        UserEntity user = userRepository.findById(cognitoSub)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         user.setUsername(update.username());
         user.setDisplayName(update.displayName());
         user.setBio(update.bio());
@@ -32,10 +35,5 @@ public class UserService {
 
     public void deleteCurrentUser(String cognitoSub) {
         userRepository.deleteById(cognitoSub);
-    }
-
-    private UserEntity getUser(String cognitoSub) {
-        return userRepository.findById(cognitoSub)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
     }
 }
