@@ -20,8 +20,6 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "trips")
@@ -42,10 +40,6 @@ public class TripEntity {
     @Column(precision = 12, scale = 2)
     private BigDecimal budget;
 
-    @JdbcTypeCode(SqlTypes.ARRAY)
-    @Column(name = "country_names", nullable = false)
-    private String[] countryNames;
-
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
     private UserEntity user;
@@ -55,6 +49,14 @@ public class TripEntity {
 
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
+
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "trip_cities",
+            joinColumns = @JoinColumn(name = "trip_id"),
+            inverseJoinColumns = @JoinColumn(name = "city_id"))
+    @Builder.Default
+    private Set<CityEntity> cities = new HashSet<>();
 
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
