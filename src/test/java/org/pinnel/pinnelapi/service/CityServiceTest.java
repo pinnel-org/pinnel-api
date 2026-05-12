@@ -24,15 +24,6 @@ import org.springframework.web.server.ResponseStatusException;
 @ExtendWith(MockitoExtension.class)
 class CityServiceTest {
 
-    private static final int SEARCH_LIMIT = 20;
-    private static final Long PARIS_ID = 1L;
-    private static final Long MISSING_ID = 99L;
-    private static final String PARIS_NAME = "Paris";
-    private static final String PARIS_COUNTRY = "France";
-    private static final int PARIS_POPULATION = 2_140_000;
-    private static final String PARIS_LATITUDE = "48.856600";
-    private static final String PARIS_LONGITUDE = "2.352200";
-
     @Mock
     private CityRepository cityRepository;
 
@@ -40,59 +31,63 @@ class CityServiceTest {
     private CityService cityService;
 
     private final CityEntity paris = CityEntity.builder()
-            .id(PARIS_ID)
-            .name(PARIS_NAME)
-            .country(PARIS_COUNTRY)
-            .latitude(new BigDecimal(PARIS_LATITUDE))
-            .longitude(new BigDecimal(PARIS_LONGITUDE))
-            .population(PARIS_POPULATION)
+            .id(1L)
+            .name("Paris")
+            .country("France")
+            .latitude(new BigDecimal("48.856600"))
+            .longitude(new BigDecimal("2.352200"))
+            .population(2_140_000)
             .build();
 
     @Test
     void getByIdReturnsDtoWhenFound() {
-        given(cityRepository.findById(PARIS_ID)).willReturn(Optional.of(paris));
+        long id = 1L;
+        given(cityRepository.findById(id)).willReturn(Optional.of(paris));
 
-        CityDto result = cityService.getById(PARIS_ID);
+        CityDto result = cityService.getById(id);
 
-        assertThat(result.id()).isEqualTo(PARIS_ID);
-        assertThat(result.name()).isEqualTo(PARIS_NAME);
-        assertThat(result.country()).isEqualTo(PARIS_COUNTRY);
-        assertThat(result.population()).isEqualTo(PARIS_POPULATION);
-        assertThat(result.latitude()).isEqualByComparingTo(PARIS_LATITUDE);
-        assertThat(result.longitude()).isEqualByComparingTo(PARIS_LONGITUDE);
+        assertThat(result.id()).isEqualTo(id);
+        assertThat(result.name()).isEqualTo("Paris");
+        assertThat(result.country()).isEqualTo("France");
+        assertThat(result.population()).isEqualTo(2_140_000);
+        assertThat(result.latitude()).isEqualByComparingTo("48.856600");
+        assertThat(result.longitude()).isEqualByComparingTo("2.352200");
     }
 
     @Test
     void getByIdThrows404WhenMissing() {
-        given(cityRepository.findById(MISSING_ID)).willReturn(Optional.empty());
+        long missingId = 99L;
+        given(cityRepository.findById(missingId)).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> cityService.getById(MISSING_ID))
+        assertThatThrownBy(() -> cityService.getById(missingId))
                 .isInstanceOfSatisfying(ResponseStatusException.class,
                         ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
     }
 
     @Test
     void searchTrimsPrefixAndForwardsLimit() {
+        int limit = 20;
         ArgumentCaptor<String> prefixCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
         given(cityRepository.searchByNamePrefix(prefixCaptor.capture(), pageableCaptor.capture()))
                 .willReturn(List.of(paris));
 
-        List<CityDto> result = cityService.search("  Par  ", SEARCH_LIMIT);
+        List<CityDto> result = cityService.search("  Par  ", limit);
 
         assertThat(prefixCaptor.getValue()).isEqualTo("Par");
-        assertThat(pageableCaptor.getValue().getPageSize()).isEqualTo(SEARCH_LIMIT);
-        assertThat(result).singleElement().satisfies(c -> assertThat(c.name()).isEqualTo(PARIS_NAME));
+        assertThat(pageableCaptor.getValue().getPageSize()).isEqualTo(limit);
+        assertThat(result).singleElement().satisfies(c -> assertThat(c.name()).isEqualTo("Paris"));
     }
 
     @Test
     void searchWithBlankUsesEmptyPrefix() {
+        int limit = 20;
         ArgumentCaptor<String> prefixCaptor = ArgumentCaptor.forClass(String.class);
         given(cityRepository.searchByNamePrefix(prefixCaptor.capture(), any(Pageable.class)))
                 .willReturn(List.of(paris));
 
-        cityService.search("", SEARCH_LIMIT);
-        cityService.search("   ", SEARCH_LIMIT);
+        cityService.search("", limit);
+        cityService.search("   ", limit);
 
         assertThat(prefixCaptor.getAllValues()).containsExactly("", "");
     }
