@@ -24,6 +24,15 @@ import org.springframework.web.server.ResponseStatusException;
 @ExtendWith(MockitoExtension.class)
 class CityServiceTest {
 
+    private static final int SEARCH_LIMIT = 20;
+    private static final Long PARIS_ID = 1L;
+    private static final Long MISSING_ID = 99L;
+    private static final String PARIS_NAME = "Paris";
+    private static final String PARIS_COUNTRY = "France";
+    private static final int PARIS_POPULATION = 2_140_000;
+    private static final String PARIS_LATITUDE = "48.856600";
+    private static final String PARIS_LONGITUDE = "2.352200";
+
     @Mock
     private CityRepository cityRepository;
 
@@ -31,33 +40,33 @@ class CityServiceTest {
     private CityService cityService;
 
     private final CityEntity paris = CityEntity.builder()
-            .id(1L)
-            .name("Paris")
-            .country("France")
-            .latitude(new BigDecimal("48.856600"))
-            .longitude(new BigDecimal("2.352200"))
-            .population(2_140_000)
+            .id(PARIS_ID)
+            .name(PARIS_NAME)
+            .country(PARIS_COUNTRY)
+            .latitude(new BigDecimal(PARIS_LATITUDE))
+            .longitude(new BigDecimal(PARIS_LONGITUDE))
+            .population(PARIS_POPULATION)
             .build();
 
     @Test
     void getByIdReturnsDtoWhenFound() {
-        given(cityRepository.findById(1L)).willReturn(Optional.of(paris));
+        given(cityRepository.findById(PARIS_ID)).willReturn(Optional.of(paris));
 
-        CityDto result = cityService.getById(1L);
+        CityDto result = cityService.getById(PARIS_ID);
 
-        assertThat(result.id()).isEqualTo(1L);
-        assertThat(result.name()).isEqualTo("Paris");
-        assertThat(result.country()).isEqualTo("France");
-        assertThat(result.population()).isEqualTo(2_140_000);
-        assertThat(result.latitude()).isEqualByComparingTo("48.856600");
-        assertThat(result.longitude()).isEqualByComparingTo("2.352200");
+        assertThat(result.id()).isEqualTo(PARIS_ID);
+        assertThat(result.name()).isEqualTo(PARIS_NAME);
+        assertThat(result.country()).isEqualTo(PARIS_COUNTRY);
+        assertThat(result.population()).isEqualTo(PARIS_POPULATION);
+        assertThat(result.latitude()).isEqualByComparingTo(PARIS_LATITUDE);
+        assertThat(result.longitude()).isEqualByComparingTo(PARIS_LONGITUDE);
     }
 
     @Test
     void getByIdThrows404WhenMissing() {
-        given(cityRepository.findById(99L)).willReturn(Optional.empty());
+        given(cityRepository.findById(MISSING_ID)).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> cityService.getById(99L))
+        assertThatThrownBy(() -> cityService.getById(MISSING_ID))
                 .isInstanceOfSatisfying(ResponseStatusException.class,
                         ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
     }
@@ -69,11 +78,11 @@ class CityServiceTest {
         given(cityRepository.searchByNamePrefix(prefixCaptor.capture(), pageableCaptor.capture()))
                 .willReturn(List.of(paris));
 
-        List<CityDto> result = cityService.search("  Par  ", 20);
+        List<CityDto> result = cityService.search("  Par  ", SEARCH_LIMIT);
 
         assertThat(prefixCaptor.getValue()).isEqualTo("Par");
-        assertThat(pageableCaptor.getValue().getPageSize()).isEqualTo(20);
-        assertThat(result).singleElement().satisfies(c -> assertThat(c.name()).isEqualTo("Paris"));
+        assertThat(pageableCaptor.getValue().getPageSize()).isEqualTo(SEARCH_LIMIT);
+        assertThat(result).singleElement().satisfies(c -> assertThat(c.name()).isEqualTo(PARIS_NAME));
     }
 
     @Test
@@ -82,8 +91,8 @@ class CityServiceTest {
         given(cityRepository.searchByNamePrefix(prefixCaptor.capture(), any(Pageable.class)))
                 .willReturn(List.of(paris));
 
-        cityService.search("", 20);
-        cityService.search("   ", 20);
+        cityService.search("", SEARCH_LIMIT);
+        cityService.search("   ", SEARCH_LIMIT);
 
         assertThat(prefixCaptor.getAllValues()).containsExactly("", "");
     }
