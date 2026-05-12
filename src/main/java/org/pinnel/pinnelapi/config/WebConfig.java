@@ -10,7 +10,7 @@ import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
-@EnableConfigurationProperties({CognitoHeadersProperties.class, CitiesProperties.class})
+@EnableConfigurationProperties(CognitoHeadersProperties.class)
 @RequiredArgsConstructor
 public class WebConfig implements WebMvcConfigurer {
 
