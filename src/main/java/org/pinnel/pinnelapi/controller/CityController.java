@@ -2,6 +2,7 @@ package org.pinnel.pinnelapi.controller;
 
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.pinnel.pinnelapi.config.CitiesProperties;
 import org.pinnel.pinnelapi.dto.CityDto;
 import org.pinnel.pinnelapi.service.CityService;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -15,14 +16,13 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class CityController {
 
-    private static final int DEFAULT_SEARCH_LIMIT = 20;
-
     private final CityService cityService;
+    private final CitiesProperties citiesProperties;
 
-    /** GET /api/cities?search=... — autocomplete-style prefix search by city name, ordered by population descending. Returns up to 20 results. Public — does not require authentication. */
+    /** GET /api/cities?search=... — autocomplete-style prefix search by city name, ordered by population descending. The result cap is configurable via {@code pinnel.cities.search-limit} (default 20). Public — does not require authentication. */
     @GetMapping
     public List<CityDto> search(@RequestParam(defaultValue = "") String search) {
-        return cityService.search(search, DEFAULT_SEARCH_LIMIT);
+        return cityService.search(search, citiesProperties.getSearchLimit());
     }
 
     /** GET /api/cities/{id} — returns the city's details. 404 if not found. Public — does not require authentication. */
