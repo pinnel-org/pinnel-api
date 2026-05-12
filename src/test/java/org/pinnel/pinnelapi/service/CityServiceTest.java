@@ -77,12 +77,12 @@ class CityServiceTest {
     }
 
     @Test
-    void searchWithNullOrBlankUsesEmptyPrefix() {
+    void searchWithBlankUsesEmptyPrefix() {
         ArgumentCaptor<String> prefixCaptor = ArgumentCaptor.forClass(String.class);
         given(cityRepository.searchByNamePrefix(prefixCaptor.capture(), any(Pageable.class)))
                 .willReturn(List.of(paris));
 
-        cityService.search(null, 20);
+        cityService.search("", 20);
         cityService.search("   ", 20);
 
         assertThat(prefixCaptor.getAllValues()).containsExactly("", "");

@@ -21,7 +21,7 @@ public class CityController {
 
     /** GET /api/cities?search=... — autocomplete-style prefix search by city name, ordered by population descending. Returns up to 20 results. Public — does not require authentication. */
     @GetMapping
-    public List<CityDto> search(@RequestParam(required = false) String search) {
+    public List<CityDto> search(@RequestParam(defaultValue = "") String search) {
         return cityService.search(search, DEFAULT_SEARCH_LIMIT);
     }
 

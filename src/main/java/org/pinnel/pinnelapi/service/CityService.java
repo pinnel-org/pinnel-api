@@ -22,10 +22,9 @@ public class CityService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
     }
 
-    /** Case-insensitive prefix search by city name, ordered by population descending then name. A null or blank query returns the most populous cities first. Capped at {@code limit} results. */
+    /** Case-insensitive prefix search by city name, ordered by population descending then name. A blank query returns the most populous cities first. Capped at {@code limit} results. */
     public List<CityDto> search(String search, int limit) {
-        String prefix = search == null ? "" : search.trim();
-        return cityRepository.searchByNamePrefix(prefix, PageRequest.ofSize(limit))
+        return cityRepository.searchByNamePrefix(search.trim(), PageRequest.ofSize(limit))
                 .stream()
                 .map(CityDto::from)
                 .toList();
