@@ -11,7 +11,7 @@ public record UserDto(
         String cognitoId,
         String email,
         @NotBlank @Size(max = 50) String username,
-        @NotNull @Size(max = 100) String displayName,
+        @NotBlank @Size(max = 100) String displayName,
         @NotNull @Size(max = 500) String bio,
         Instant createdAt,
         Instant updatedAt
