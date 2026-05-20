@@ -42,10 +42,11 @@ Install a Java 21 JRE/JDK, e.g. on Amazon Linux 2023:
 sudo dnf install -y java-21-amazon-corretto-headless
 ```
 
-### 2. Application directory
+### 2. Application and log directories
 
 ```bash
 sudo mkdir -p /opt/pinnel-api
+sudo mkdir -p /var/log/pinnel-api
 ```
 
 ### 3. Environment file
@@ -75,6 +76,8 @@ After=network.target
 WorkingDirectory=/opt/pinnel-api
 EnvironmentFile=/etc/pinnel-api/pinnel-api.env
 ExecStart=/usr/bin/java -jar /opt/pinnel-api/pinnel-api.jar
+StandardOutput=append:/var/log/pinnel-api/app.log
+StandardError=append:/var/log/pinnel-api/app.log
 SuccessExitStatus=143
 Restart=on-failure
 RestartSec=5
@@ -88,6 +91,10 @@ runs as `root` (systemd's default when no `User=` is set), which is fine for
 pre-MVP — it can bind the privileged port directly. A later hardening step is to
 run it as a dedicated non-root user with
 `AmbientCapabilities=CAP_NET_BIND_SERVICE`.
+
+`StandardOutput` / `StandardError` send the app's console output to
+`/var/log/pinnel-api/app.log` (not the systemd journal), where the CloudWatch
+agent picks it up — see [Logging](#logging).
 
 Then enable it (it will fail to start until the first deploy lands a JAR):
 
@@ -121,6 +128,106 @@ port-forwarding so port 22 needs no public ingress at all.
 Port **80** must be open for normal API traffic. The deploy's health check runs
 on the instance against `localhost`, so it adds no extra security-group
 requirement.
+
+## Logging
+
+App logs go to **CloudWatch Logs**, group `/pinnel/api`, so they can be read
+from anywhere — not just over SSH.
+
+Flow: the systemd unit appends the app's stdout/stderr to
+`/var/log/pinnel-api/app.log` (see the [systemd unit](#4-systemd-unit)); the
+CloudWatch agent tails that file and ships it to the `/pinnel/api` log group,
+into a stream named after the instance ID.
+
+### IAM
+
+The EC2 instance needs an instance profile whose role has the
+`CloudWatchAgentServerPolicy` managed policy attached. That grants the agent
+`logs:CreateLogStream` / `logs:PutLogEvents` / `logs:PutRetentionPolicy` — it is
+**write-only**, so the instance cannot read logs back (`aws logs tail` from the
+box fails by design).
+
+### CloudWatch agent
+
+```bash
+sudo dnf install -y amazon-cloudwatch-agent
+```
+
+Config at `/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json`:
+
+```json
+{
+  "agent": { "run_as_user": "root" },
+  "logs": {
+    "logs_collected": {
+      "files": {
+        "collect_list": [
+          {
+            "file_path": "/var/log/pinnel-api/app.log",
+            "log_group_name": "/pinnel/api",
+            "log_stream_name": "{instance_id}",
+            "timestamp_format": "%Y-%m-%dT%H:%M:%S.%f",
+            "timezone": "UTC",
+            "multi_line_start_pattern": "{timestamp_format}",
+            "retention_in_days": 1
+          }
+        ]
+      }
+    }
+  }
+}
+```
+
+`timestamp_format` matches Spring Boot's ISO-8601 console pattern
+(`2026-05-20T22:10:39.547Z`); `multi_line_start_pattern` keeps multi-line Java
+stack traces together as a single log event. Load the config and start the
+agent:
+
+```bash
+sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
+  -a fetch-config -m ec2 -s \
+  -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
+```
+
+### Log group and retention
+
+The agent creates the `/pinnel/api` log group if it is missing and applies
+`retention_in_days` from its config on startup — currently **1 day** for
+pre-MVP. To change retention:
+
+```bash
+aws logs put-retention-policy --log-group-name /pinnel/api \
+  --retention-in-days <days> --region eu-north-1
+```
+
+### Log rotation
+
+`/etc/logrotate.d/pinnel-api` rotates the local file daily, keeping 3 days as a
+disk safety net:
+
+```
+/var/log/pinnel-api/app.log {
+    daily
+    rotate 3
+    missingok
+    notifempty
+    copytruncate
+    compress
+    delaycompress
+}
+```
+
+`copytruncate` is required: the systemd unit holds an open append handle on the
+file, so the log must be rotated by copy-and-truncate rather than rename.
+
+### Viewing logs
+
+From a machine with CloudWatch **read** access (not the instance — its role is
+write-only):
+
+```bash
+aws logs tail /pinnel/api --follow --region eu-north-1
+```
 
 ## Rollback
 
