@@ -46,18 +46,9 @@ sudo dnf install -y java-21-amazon-corretto-headless
 
 ```bash
 sudo mkdir -p /opt/pinnel-api
-sudo chown pinnel:pinnel /opt/pinnel-api   # see service user below
 ```
 
-### 3. Service user
-
-Run the app as a dedicated non-login user:
-
-```bash
-sudo useradd --system --no-create-home --shell /usr/sbin/nologin pinnel
-```
-
-### 4. Environment file
+### 3. Environment file
 
 The `prod` profile reads the datasource from environment variables. Create
 `/etc/pinnel-api/pinnel-api.env` (root-owned, `chmod 600` — it holds the DB
@@ -71,7 +62,7 @@ SPRING_DATASOURCE_USERNAME=pinnel
 SPRING_DATASOURCE_PASSWORD=<password>
 ```
 
-### 5. systemd unit
+### 4. systemd unit
 
 Create `/etc/systemd/system/pinnel-api.service`:
 
@@ -81,11 +72,9 @@ Description=Pinnel API
 After=network.target
 
 [Service]
-User=pinnel
 WorkingDirectory=/opt/pinnel-api
 EnvironmentFile=/etc/pinnel-api/pinnel-api.env
 ExecStart=/usr/bin/java -jar /opt/pinnel-api/pinnel-api.jar
-AmbientCapabilities=CAP_NET_BIND_SERVICE
 SuccessExitStatus=143
 Restart=on-failure
 RestartSec=5
@@ -94,9 +83,11 @@ RestartSec=5
 WantedBy=multi-user.target
 ```
 
-`SERVER_PORT=80` in the env file makes the app serve on port 80, and
-`AmbientCapabilities=CAP_NET_BIND_SERVICE` lets the non-root `pinnel` user bind
-that privileged port without running the service as root.
+`SERVER_PORT=80` in the env file makes the app serve on port 80. The service
+runs as `root` (systemd's default when no `User=` is set), which is fine for
+pre-MVP — it can bind the privileged port directly. A later hardening step is to
+run it as a dedicated non-root user with
+`AmbientCapabilities=CAP_NET_BIND_SERVICE`.
 
 Then enable it (it will fail to start until the first deploy lands a JAR):
 
@@ -105,7 +96,7 @@ sudo systemctl daemon-reload
 sudo systemctl enable pinnel-api
 ```
 
-### 6. Deploy permissions
+### 5. Deploy permissions
 
 The deploy workflow runs `sudo` on the host to move the JAR into
 `/opt/pinnel-api` and restart the service. The default instance user
@@ -119,7 +110,7 @@ e.g. in `/etc/sudoers.d/pinnel-deploy`:
 deploy ALL=(ALL) NOPASSWD: /bin/mv, /bin/cp, /bin/systemctl restart pinnel-api
 ```
 
-### 7. Security group
+### 6. Security group
 
 Allow inbound TCP **22** from the network that runs the deploy. GitHub-hosted
 runners use a wide, changing set of IP ranges, so this effectively means
