@@ -83,11 +83,10 @@ RestartSec=5
 WantedBy=multi-user.target
 ```
 
-`SERVER_PORT=80` in the env file makes the app serve on port 80. The service
-runs as `root` (systemd's default when no `User=` is set), which is fine for
-pre-MVP — it can bind the privileged port directly. A later hardening step is to
-run it as a dedicated non-root user with
-`AmbientCapabilities=CAP_NET_BIND_SERVICE`.
+`SERVER_PORT=80` in the env file makes the app serve on port 80. With no
+`User=` line the service runs as `root`, which can bind that privileged port —
+fine for pre-MVP. Running as a dedicated non-root user with
+`AmbientCapabilities=CAP_NET_BIND_SERVICE` is a sensible later hardening step.
 
 Then enable it (it will fail to start until the first deploy lands a JAR):
 
