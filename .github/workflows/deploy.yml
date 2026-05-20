@@ -15,7 +15,7 @@ jobs:
     env:
       APP_DIR: /opt/pinnel-api
       SERVICE: pinnel-api
-      HEALTH_URL: http://localhost:8080/actuator/health
+      HEALTH_URL: http://localhost/actuator/health
     steps:
       - uses: actions/checkout@v5
 

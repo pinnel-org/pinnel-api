@@ -65,6 +65,7 @@ password):
 
 ```ini
 SPRING_PROFILES_ACTIVE=prod
+SERVER_PORT=80
 SPRING_DATASOURCE_URL=jdbc:postgresql://<rds-endpoint>:5432/pinnel
 SPRING_DATASOURCE_USERNAME=pinnel
 SPRING_DATASOURCE_PASSWORD=<password>
@@ -84,6 +85,7 @@ User=pinnel
 WorkingDirectory=/opt/pinnel-api
 EnvironmentFile=/etc/pinnel-api/pinnel-api.env
 ExecStart=/usr/bin/java -jar /opt/pinnel-api/pinnel-api.jar
+AmbientCapabilities=CAP_NET_BIND_SERVICE
 SuccessExitStatus=143
 Restart=on-failure
 RestartSec=5
@@ -91,6 +93,10 @@ RestartSec=5
 [Install]
 WantedBy=multi-user.target
 ```
+
+`SERVER_PORT=80` in the env file makes the app serve on port 80, and
+`AmbientCapabilities=CAP_NET_BIND_SERVICE` lets the non-root `pinnel` user bind
+that privileged port without running the service as root.
 
 Then enable it (it will fail to start until the first deploy lands a JAR):
 
@@ -121,8 +127,9 @@ opening 22 broadly — acceptable for pre-MVP with key-only auth. Hardening
 options for later: a self-hosted runner in the VPC, or SSM Session Manager
 port-forwarding so port 22 needs no public ingress at all.
 
-The health check runs on the instance against `localhost:8080`, so the security
-group does not need 8080 open for deploys.
+Port **80** must be open for normal API traffic. The deploy's health check runs
+on the instance against `localhost`, so it adds no extra security-group
+requirement.
 
 ## Rollback
 
