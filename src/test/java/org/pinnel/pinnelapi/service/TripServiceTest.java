@@ -3,6 +3,7 @@ package org.pinnel.pinnelapi.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyIterable;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -24,6 +25,8 @@ import org.pinnel.pinnelapi.entity.CityEntity;
 import org.pinnel.pinnelapi.entity.PinEntity;
 import org.pinnel.pinnelapi.entity.TripEntity;
 import org.pinnel.pinnelapi.entity.UserEntity;
+import org.pinnel.pinnelapi.repository.CityRepository;
+import org.pinnel.pinnelapi.repository.PinRepository;
 import org.pinnel.pinnelapi.repository.TripRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
@@ -38,6 +41,12 @@ class TripServiceTest {
 
     @Mock
     private TripRepository tripRepository;
+
+    @Mock
+    private CityRepository cityRepository;
+
+    @Mock
+    private PinRepository pinRepository;
 
     @InjectMocks
     private TripService tripService;
@@ -65,7 +74,11 @@ class TripServiceTest {
     }
 
     private TripDto request(String name, BigDecimal budget) {
-        return new TripDto(null, name, budget, null, null, null, null, null);
+        return request(name, budget, Set.of(), Set.of());
+    }
+
+    private TripDto request(String name, BigDecimal budget, Set<Long> cityIds, Set<Long> pinIds) {
+        return new TripDto(null, name, budget, null, cityIds, pinIds, null, null);
     }
 
     @Test
@@ -148,6 +161,63 @@ class TripServiceTest {
     }
 
     @Test
+    void createPersistsRequestedCitiesAndPins() {
+        Long cityId1 = 10L;
+        Long cityId2 = 11L;
+        Long pinId = 20L;
+        CityEntity city1 = CityEntity.builder().id(cityId1).build();
+        CityEntity city2 = CityEntity.builder().id(cityId2).build();
+        PinEntity pin = PinEntity.builder().id(pinId).build();
+        given(cityRepository.findAllById(anyIterable())).willReturn(List.of(city1, city2));
+        given(pinRepository.findAllById(anyIterable())).willReturn(List.of(pin));
+        given(tripRepository.save(any(TripEntity.class))).willAnswer(inv -> {
+            TripEntity t = inv.getArgument(0);
+            t.setId(TRIP_ID);
+            return t;
+        });
+
+        TripDto result = tripService.create(caller,
+                request("Trip A", null, Set.of(cityId1, cityId2), Set.of(pinId)));
+
+        ArgumentCaptor<TripEntity> captor = ArgumentCaptor.forClass(TripEntity.class);
+        verify(tripRepository).save(captor.capture());
+        assertThat(captor.getValue().getCities()).containsExactlyInAnyOrder(city1, city2);
+        assertThat(captor.getValue().getPins()).containsExactly(pin);
+        assertThat(result.cityIds()).containsExactlyInAnyOrder(cityId1, cityId2);
+        assertThat(result.pinIds()).containsExactly(pinId);
+    }
+
+    @Test
+    void createThrows400WhenAnyCityIdMissing() {
+        Long knownCityId = 10L;
+        Long missingCityId = 99L;
+        given(cityRepository.findAllById(anyIterable()))
+                .willReturn(List.of(CityEntity.builder().id(knownCityId).build()));
+
+        assertThatThrownBy(() -> tripService.create(caller,
+                request("Trip", null, Set.of(knownCityId, missingCityId), Set.of())))
+                .isInstanceOfSatisfying(ResponseStatusException.class, ex -> {
+                    assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+                    assertThat(ex.getReason()).contains(String.valueOf(missingCityId));
+                });
+        verify(tripRepository, never()).save(any());
+    }
+
+    @Test
+    void createThrows400WhenAnyPinIdMissing() {
+        Long missingPinId = 99L;
+        given(pinRepository.findAllById(anyIterable())).willReturn(List.of());
+
+        assertThatThrownBy(() -> tripService.create(caller,
+                request("Trip", null, Set.of(), Set.of(missingPinId))))
+                .isInstanceOfSatisfying(ResponseStatusException.class, ex -> {
+                    assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+                    assertThat(ex.getReason()).contains(String.valueOf(missingPinId));
+                });
+        verify(tripRepository, never()).save(any());
+    }
+
+    @Test
     void updateAppliesFieldsAndBumpsUpdatedAtWhenOwner() {
         TripEntity existing = trip(TRIP_ID, caller);
         given(tripRepository.findById(TRIP_ID)).willReturn(Optional.of(existing));
@@ -159,6 +229,40 @@ class TripServiceTest {
         assertThat(existing.getBudget()).isEqualByComparingTo("2000.00");
         assertThat(existing.getUpdatedAt()).isAfter(ORIGINAL_TIMESTAMP);
         assertThat(result.name()).isEqualTo("Renamed");
+    }
+
+    @Test
+    void updateReplacesCitiesAndPins() {
+        TripEntity existing = trip(TRIP_ID, caller);
+        Long newCityId1 = 11L;
+        Long newCityId2 = 12L;
+        CityEntity newCity1 = CityEntity.builder().id(newCityId1).build();
+        CityEntity newCity2 = CityEntity.builder().id(newCityId2).build();
+        given(tripRepository.findById(TRIP_ID)).willReturn(Optional.of(existing));
+        given(cityRepository.findAllById(anyIterable())).willReturn(List.of(newCity1, newCity2));
+        given(tripRepository.save(existing)).willAnswer(inv -> inv.getArgument(0));
+
+        tripService.update(caller, TRIP_ID,
+                request("Renamed", null, Set.of(newCityId1, newCityId2), Set.of()));
+
+        assertThat(existing.getCities()).containsExactlyInAnyOrder(newCity1, newCity2);
+        assertThat(existing.getPins()).isEmpty();
+    }
+
+    @Test
+    void updateThrows400WhenCityIdMissing() {
+        TripEntity existing = trip(TRIP_ID, caller);
+        Long missingCityId = 99L;
+        given(tripRepository.findById(TRIP_ID)).willReturn(Optional.of(existing));
+        given(cityRepository.findAllById(anyIterable())).willReturn(List.of());
+
+        assertThatThrownBy(() -> tripService.update(caller, TRIP_ID,
+                request("Renamed", null, Set.of(missingCityId), Set.of())))
+                .isInstanceOfSatisfying(ResponseStatusException.class, ex -> {
+                    assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+                    assertThat(ex.getReason()).contains(String.valueOf(missingCityId));
+                });
+        verify(tripRepository, never()).save(any());
     }
 
     @Test

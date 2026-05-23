@@ -2,6 +2,7 @@ package org.pinnel.pinnelapi.dto;
 
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -16,8 +17,8 @@ public record TripDto(
         @NotBlank @Size(max = 120) String name,
         @DecimalMin("0") BigDecimal budget,
         Long userId,
-        Set<Long> cityIds,
-        Set<Long> pinIds,
+        @NotNull Set<Long> cityIds,
+        @NotNull Set<Long> pinIds,
         Instant createdAt,
         Instant updatedAt
 ) {

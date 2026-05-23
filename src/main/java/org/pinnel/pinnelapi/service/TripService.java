@@ -1,11 +1,19 @@
 package org.pinnel.pinnelapi.service;
 
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.pinnel.pinnelapi.dto.TripDto;
+import org.pinnel.pinnelapi.entity.CityEntity;
+import org.pinnel.pinnelapi.entity.PinEntity;
 import org.pinnel.pinnelapi.entity.TripEntity;
 import org.pinnel.pinnelapi.entity.UserEntity;
+import org.pinnel.pinnelapi.repository.CityRepository;
+import org.pinnel.pinnelapi.repository.PinRepository;
 import org.pinnel.pinnelapi.repository.TripRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -17,6 +25,8 @@ import org.springframework.web.server.ResponseStatusException;
 public class TripService {
 
     private final TripRepository tripRepository;
+    private final CityRepository cityRepository;
+    private final PinRepository pinRepository;
 
     /** Lists the caller's trips. Each returned DTO includes the trip's current city/pin ids. */
     @Transactional(readOnly = true)
@@ -33,7 +43,7 @@ public class TripService {
         return TripDto.from(getOwnTrip(caller, id));
     }
 
-    /** Creates a trip owned by the caller. Cities and pins start empty — they are managed via separate endpoints. */
+    /** Creates a trip owned by the caller. cityIds / pinIds in the request are attached; unknown ids → 400. */
     @Transactional
     public TripDto create(UserEntity caller, TripDto request) {
         Instant now = Instant.now();
@@ -43,16 +53,20 @@ public class TripService {
                 .user(caller)
                 .createdAt(now)
                 .updatedAt(now)
+                .cities(resolveCities(request.cityIds()))
+                .pins(resolvePins(request.pinIds()))
                 .build());
         return TripDto.from(saved);
     }
 
-    /** Strict-replace of the trip's editable metadata (name, budget). Throws 404 if the trip does not exist or does not belong to the caller. */
+    /** Strict-replace of the trip's editable fields (name, budget, cityIds, pinIds). Throws 404 if missing / not the caller's, 400 if any city or pin id is unknown. */
     @Transactional
     public TripDto update(UserEntity caller, Long id, TripDto request) {
         TripEntity trip = getOwnTrip(caller, id);
         trip.setName(request.name());
         trip.setBudget(request.budget());
+        trip.setCities(resolveCities(request.cityIds()));
+        trip.setPins(resolvePins(request.pinIds()));
         trip.setUpdatedAt(Instant.now());
         return TripDto.from(tripRepository.save(trip));
     }
@@ -80,5 +94,33 @@ public class TripService {
         if (!trip.getUser().getId().equals(caller.getId())) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         }
+    }
+
+    private Set<CityEntity> resolveCities(Set<Long> ids) {
+        if (ids.isEmpty()) {
+            return new HashSet<>();
+        }
+        List<CityEntity> found = cityRepository.findAllById(ids);
+        if (found.size() != ids.size()) {
+            Set<Long> foundIds = found.stream().map(CityEntity::getId).collect(Collectors.toSet());
+            Set<Long> missing = new TreeSet<>(ids);
+            missing.removeAll(foundIds);
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown cityIds: " + missing);
+        }
+        return new HashSet<>(found);
+    }
+
+    private Set<PinEntity> resolvePins(Set<Long> ids) {
+        if (ids.isEmpty()) {
+            return new HashSet<>();
+        }
+        List<PinEntity> found = pinRepository.findAllById(ids);
+        if (found.size() != ids.size()) {
+            Set<Long> foundIds = found.stream().map(PinEntity::getId).collect(Collectors.toSet());
+            Set<Long> missing = new TreeSet<>(ids);
+            missing.removeAll(foundIds);
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown pinIds: " + missing);
+        }
+        return new HashSet<>(found);
     }
 }
