@@ -4,9 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyIterable;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -306,12 +308,158 @@ class TripServiceTest {
     }
 
     @Test
+    void createThrows400WhenPrivatePinAlreadyOnAnotherTrip() {
+        Long pinId = 20L;
+        PinEntity privatePin = PinEntity.builder().id(pinId).isPublic(false).user(caller).build();
+        given(pinRepository.findAllById(anyIterable())).willReturn(List.of(privatePin));
+        given(tripRepository.existsOtherTripContainingPin(pinId, -1L)).willReturn(true);
+
+        assertThatThrownBy(() -> tripService.create(caller,
+                request("Trip", null, Set.of(), Set.of(pinId))))
+                .isInstanceOfSatisfying(ResponseStatusException.class, ex -> {
+                    assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+                    assertThat(ex.getReason()).contains(String.valueOf(pinId));
+                });
+        verify(tripRepository, never()).save(any());
+    }
+
+    @Test
+    void createAllowsPublicPinAlreadyOnAnotherTrip() {
+        Long pinId = 20L;
+        PinEntity publicPin = PinEntity.builder().id(pinId).isPublic(true).user(otherUser).build();
+        given(pinRepository.findAllById(anyIterable())).willReturn(List.of(publicPin));
+        given(tripRepository.save(any(TripEntity.class))).willAnswer(inv -> inv.getArgument(0));
+
+        tripService.create(caller, request("Trip", null, Set.of(), Set.of(pinId)));
+
+        verify(tripRepository).save(any(TripEntity.class));
+        verify(tripRepository, never()).existsOtherTripContainingPin(anyLong(), anyLong());
+    }
+
+    @Test
+    void updateThrows400WhenPrivatePinAlreadyOnAnotherTrip() {
+        Long pinId = 20L;
+        TripEntity existing = trip(TRIP_ID, caller);
+        PinEntity privatePin = PinEntity.builder().id(pinId).isPublic(false).user(caller).build();
+        given(tripRepository.findById(TRIP_ID)).willReturn(Optional.of(existing));
+        given(pinRepository.findAllById(anyIterable())).willReturn(List.of(privatePin));
+        given(tripRepository.existsOtherTripContainingPin(pinId, TRIP_ID)).willReturn(true);
+
+        assertThatThrownBy(() -> tripService.update(caller, TRIP_ID,
+                request("Renamed", null, Set.of(), Set.of(pinId))))
+                .isInstanceOfSatisfying(ResponseStatusException.class, ex -> {
+                    assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+                    assertThat(ex.getReason()).contains(String.valueOf(pinId));
+                });
+        verify(tripRepository, never()).save(any());
+    }
+
+    @Test
+    void updateAllowsPrivatePinAlreadyAttachedToThisTrip() {
+        Long pinId = 20L;
+        TripEntity existing = trip(TRIP_ID, caller);
+        PinEntity privatePin = PinEntity.builder().id(pinId).isPublic(false).user(caller).build();
+        given(tripRepository.findById(TRIP_ID)).willReturn(Optional.of(existing));
+        given(pinRepository.findAllById(anyIterable())).willReturn(List.of(privatePin));
+        given(tripRepository.existsOtherTripContainingPin(pinId, TRIP_ID)).willReturn(false);
+        given(tripRepository.save(existing)).willAnswer(inv -> inv.getArgument(0));
+
+        tripService.update(caller, TRIP_ID, request("Renamed", null, Set.of(), Set.of(pinId)));
+
+        assertThat(existing.getPins()).containsExactly(privatePin);
+    }
+
+    @Test
     void deleteRemovesWhenOwner() {
         given(tripRepository.findById(TRIP_ID)).willReturn(Optional.of(trip(TRIP_ID, caller)));
 
         tripService.delete(caller, TRIP_ID);
 
         verify(tripRepository).deleteById(TRIP_ID);
+    }
+
+    @Test
+    void deleteAlsoDeletesCallerOwnedPrivatePin() {
+        TripEntity existing = trip(TRIP_ID, caller);
+        PinEntity ownedPrivate = PinEntity.builder().id(30L).isPublic(false).user(caller).build();
+        existing.setPins(Set.of(ownedPrivate));
+        given(tripRepository.findById(TRIP_ID)).willReturn(Optional.of(existing));
+
+        tripService.delete(caller, TRIP_ID);
+
+        verify(tripRepository).deleteById(TRIP_ID);
+        verify(pinRepository).delete(ownedPrivate);
+    }
+
+    @Test
+    void deleteRetainsPublicPinOnTrip() {
+        TripEntity existing = trip(TRIP_ID, caller);
+        PinEntity publicPin = PinEntity.builder().id(31L).isPublic(true).user(caller).build();
+        existing.setPins(Set.of(publicPin));
+        given(tripRepository.findById(TRIP_ID)).willReturn(Optional.of(existing));
+
+        tripService.delete(caller, TRIP_ID);
+
+        verify(tripRepository).deleteById(TRIP_ID);
+        verify(pinRepository, never()).delete(any());
+    }
+
+    @Test
+    void deleteRetainsCuratedPinOnTrip() {
+        TripEntity existing = trip(TRIP_ID, caller);
+        PinEntity curated = PinEntity.builder().id(32L).isPublic(false).user(null).build();
+        existing.setPins(Set.of(curated));
+        given(tripRepository.findById(TRIP_ID)).willReturn(Optional.of(existing));
+
+        tripService.delete(caller, TRIP_ID);
+
+        verify(tripRepository).deleteById(TRIP_ID);
+        verify(pinRepository, never()).delete(any());
+    }
+
+    @Test
+    void deleteRetainsForeignOwnedPrivatePinOnTrip() {
+        TripEntity existing = trip(TRIP_ID, caller);
+        PinEntity foreignPrivate = PinEntity.builder().id(33L).isPublic(false).user(otherUser).build();
+        existing.setPins(Set.of(foreignPrivate));
+        given(tripRepository.findById(TRIP_ID)).willReturn(Optional.of(existing));
+
+        tripService.delete(caller, TRIP_ID);
+
+        verify(tripRepository).deleteById(TRIP_ID);
+        verify(pinRepository, never()).delete(any());
+    }
+
+    @Test
+    void deleteWithMixedPinsOnlyDeletesCallerOwnedPrivates() {
+        TripEntity existing = trip(TRIP_ID, caller);
+        PinEntity ownedPrivateA = PinEntity.builder().id(40L).isPublic(false).user(caller).build();
+        PinEntity ownedPrivateB = PinEntity.builder().id(41L).isPublic(false).user(caller).build();
+        PinEntity publicPin = PinEntity.builder().id(42L).isPublic(true).user(caller).build();
+        PinEntity curated = PinEntity.builder().id(43L).isPublic(false).user(null).build();
+        PinEntity foreignPrivate = PinEntity.builder().id(44L).isPublic(false).user(otherUser).build();
+        existing.setPins(Set.of(ownedPrivateA, ownedPrivateB, publicPin, curated, foreignPrivate));
+        given(tripRepository.findById(TRIP_ID)).willReturn(Optional.of(existing));
+
+        tripService.delete(caller, TRIP_ID);
+
+        verify(pinRepository).delete(ownedPrivateA);
+        verify(pinRepository).delete(ownedPrivateB);
+        verify(pinRepository, never()).delete(publicPin);
+        verify(pinRepository, never()).delete(curated);
+        verify(pinRepository, never()).delete(foreignPrivate);
+    }
+
+    @Test
+    void deleteWithNoPinsDoesNotTouchPinRepository() {
+        TripEntity existing = trip(TRIP_ID, caller);
+        existing.setPins(Set.of());
+        given(tripRepository.findById(TRIP_ID)).willReturn(Optional.of(existing));
+
+        tripService.delete(caller, TRIP_ID);
+
+        verify(tripRepository).deleteById(TRIP_ID);
+        verifyNoInteractions(pinRepository);
     }
 
     @Test

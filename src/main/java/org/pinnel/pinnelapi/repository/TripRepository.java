@@ -18,4 +18,12 @@ public interface TripRepository extends JpaRepository<TripEntity, Long> {
             WHERE t.user.id = :userId
             """)
     Set<String> findDistinctCountriesByUserId(@Param("userId") Long userId);
+
+    @Query("""
+            SELECT (COUNT(t) > 0) FROM TripEntity t
+            JOIN t.pins p
+            WHERE p.id = :pinId AND t.id <> :excludeTripId
+            """)
+    boolean existsOtherTripContainingPin(@Param("pinId") Long pinId,
+                                         @Param("excludeTripId") Long excludeTripId);
 }

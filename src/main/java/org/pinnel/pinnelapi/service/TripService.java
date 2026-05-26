@@ -25,6 +25,9 @@ import org.springframework.web.server.ResponseStatusException;
 @RequiredArgsConstructor
 public class TripService {
 
+    /** Sentinel for "no trip to exclude" in private-pin uniqueness checks — no real trip will ever have this id. */
+    private static final long NO_TRIP_TO_EXCLUDE = -1L;
+
     private final TripRepository tripRepository;
     private final CityRepository cityRepository;
     private final PinRepository pinRepository;
@@ -45,7 +48,7 @@ public class TripService {
         return TripDto.from(getOwnTrip(caller, id));
     }
 
-    /** Creates a trip owned by the caller. cityIds / pinIds in the request are attached; unknown ids → 400. coverImageUrl is set from a random cover of the lowest-id attached city, or null if no cities are attached. */
+    /** Creates a trip owned by the caller. cityIds / pinIds in the request are attached; unknown ids → 400. A private pin already attached to another trip → 400. coverImageUrl is set from a random cover of the lowest-id attached city, or null if no cities are attached. */
     @Transactional
     public TripDto create(UserEntity caller, TripDto request) {
         Instant now = Instant.now();
@@ -57,7 +60,7 @@ public class TripService {
                 .createdAt(now)
                 .updatedAt(now)
                 .cities(cities)
-                .pins(resolvePins(request.pinIds()))
+                .pins(resolvePins(request.pinIds(), NO_TRIP_TO_EXCLUDE))
                 .coverImageUrl(resolveCoverImageUrl(cities))
                 .build());
         return TripDto.from(saved);
@@ -70,27 +73,37 @@ public class TripService {
                 .orElse(null);
     }
 
-    /** Strict-replace of the trip's editable fields (name, budget, cityIds, pinIds). Throws 404 if missing / not the caller's, 400 if any city or pin id is unknown. */
+    /** Strict-replace of the trip's editable fields (name, budget, cityIds, pinIds). Throws 404 if missing / not the caller's, 400 if any city or pin id is unknown, or if a submitted private pin is already attached to a different trip. */
     @Transactional
     public TripDto update(UserEntity caller, Long id, TripDto request) {
         TripEntity trip = getOwnTrip(caller, id);
         trip.setName(request.name());
         trip.setBudget(request.budget());
         trip.setCities(resolveCities(request.cityIds()));
-        trip.setPins(resolvePins(request.pinIds()));
+        trip.setPins(resolvePins(request.pinIds(), trip.getId()));
         trip.setUpdatedAt(Instant.now());
         return TripDto.from(tripRepository.save(trip));
     }
 
     /**
-     * Deletes the trip. No-op if the trip does not exist (idempotent). Throws 404 if the trip exists
-     * but does not belong to the caller (don't leak existence of other users' trips).
+     * Deletes the trip and the caller's private pins that were attached to it. No-op if the trip
+     * does not exist (idempotent). Throws 404 if the trip exists but does not belong to the caller
+     * (don't leak existence of other users' trips). Public and curated pins on the trip are retained.
      */
     @Transactional
     public void delete(UserEntity caller, Long id) {
         tripRepository.findById(id).ifPresent(trip -> {
             requireOwner(trip, caller);
+            Set<PinEntity> attached = new HashSet<>(trip.getPins());
             tripRepository.deleteById(id);
+            tripRepository.flush();
+            for (PinEntity pin : attached) {
+                if (!pin.isPublic()
+                        && pin.getUser() != null
+                        && pin.getUser().getId().equals(caller.getId())) {
+                    pinRepository.delete(pin);
+                }
+            }
         });
     }
 
@@ -121,7 +134,7 @@ public class TripService {
         return new HashSet<>(found);
     }
 
-    private Set<PinEntity> resolvePins(Set<Long> ids) {
+    private Set<PinEntity> resolvePins(Set<Long> ids, long excludeTripId) {
         if (ids.isEmpty()) {
             return new HashSet<>();
         }
@@ -131,6 +144,13 @@ public class TripService {
             Set<Long> missing = new TreeSet<>(ids);
             missing.removeAll(foundIds);
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown pinIds: " + missing);
+        }
+        for (PinEntity pin : found) {
+            if (!pin.isPublic()
+                    && tripRepository.existsOtherTripContainingPin(pin.getId(), excludeTripId)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Private pin already attached to another trip: " + pin.getId());
+            }
         }
         return new HashSet<>(found);
     }
