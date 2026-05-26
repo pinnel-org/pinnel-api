@@ -19,6 +19,7 @@ public record TripDto(
         Long userId,
         @NotNull Set<Long> cityIds,
         @NotNull Set<Long> pinIds,
+        String coverImageUrl,
         Instant createdAt,
         Instant updatedAt
 ) {
@@ -30,6 +31,7 @@ public record TripDto(
                 trip.getUser().getId(),
                 trip.getCities().stream().map(CityEntity::getId).collect(Collectors.toUnmodifiableSet()),
                 trip.getPins().stream().map(PinEntity::getId).collect(Collectors.toUnmodifiableSet()),
+                trip.getCoverImageUrl(),
                 trip.getCreatedAt(),
                 trip.getUpdatedAt()
         );
