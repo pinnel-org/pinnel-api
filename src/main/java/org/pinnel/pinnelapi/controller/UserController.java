@@ -1,6 +1,7 @@
 package org.pinnel.pinnelapi.controller;
 
 import jakarta.validation.Valid;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.pinnel.pinnelapi.auth.CurrentUser;
 import org.pinnel.pinnelapi.dto.UserDto;
@@ -39,5 +40,11 @@ public class UserController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteCurrent(@CurrentUser UserEntity user) {
         userService.deleteCurrentUser(user);
+    }
+
+    /** GET /api/me/countries — returns the distinct country names across all cities in the caller's trips. */
+    @GetMapping("/countries")
+    public Set<String> listMyCountries(@CurrentUser UserEntity user) {
+        return userService.listMyCountries(user);
     }
 }
