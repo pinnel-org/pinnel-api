@@ -2,6 +2,7 @@ package org.pinnel.pinnelapi.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -13,6 +14,7 @@ import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -178,5 +180,47 @@ class UserServiceTest {
         userService.listMyCountries(existing);
 
         verify(tripRepository).findDistinctCountriesByUserId(USER_ID);
+    }
+
+    @Test
+    void getCurrentUserAvatarReturnsBytesFromRepository() {
+        byte[] bytes = {1, 2, 3, 4};
+        given(userRepository.findAvatarById(USER_ID)).willReturn(bytes);
+
+        Optional<byte[]> result = userService.getCurrentUserAvatar(existing);
+
+        assertThat(result).contains(bytes);
+    }
+
+    @Test
+    void getCurrentUserAvatarReturnsEmptyWhenRepositoryReturnsNull() {
+        given(userRepository.findAvatarById(USER_ID)).willReturn(null);
+
+        Optional<byte[]> result = userService.getCurrentUserAvatar(existing);
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void saveCurrentUserAvatarPassesBytesAndCurrentInstantToRepository() {
+        byte[] bytes = {9, 8, 7};
+        Instant before = Instant.now();
+
+        userService.saveCurrentUserAvatar(existing, bytes);
+
+        ArgumentCaptor<Instant> updatedAt = ArgumentCaptor.forClass(Instant.class);
+        verify(userRepository).updateAvatarById(eq(USER_ID), eq(bytes), updatedAt.capture());
+        assertThat(updatedAt.getValue()).isAfterOrEqualTo(before);
+    }
+
+    @Test
+    void deleteCurrentUserAvatarCallsRepositoryWithNullBytes() {
+        Instant before = Instant.now();
+
+        userService.deleteCurrentUserAvatar(existing);
+
+        ArgumentCaptor<Instant> updatedAt = ArgumentCaptor.forClass(Instant.class);
+        verify(userRepository).updateAvatarById(eq(USER_ID), eq(null), updatedAt.capture());
+        assertThat(updatedAt.getValue()).isAfterOrEqualTo(before);
     }
 }
