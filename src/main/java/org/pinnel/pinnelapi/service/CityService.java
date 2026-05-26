@@ -1,7 +1,6 @@
 package org.pinnel.pinnelapi.service;
 
 import java.util.List;
-import java.util.concurrent.ThreadLocalRandom;
 import lombok.RequiredArgsConstructor;
 import org.pinnel.pinnelapi.dto.CityDto;
 import org.pinnel.pinnelapi.entity.CityEntity;
@@ -24,9 +23,6 @@ public class CityService {
     @Value("${pinnel.cdn.cover-path-template}")
     private String coverPathTemplate;
 
-    @Value("${pinnel.cdn.cover-count}")
-    private int coverCount;
-
     /** Returns the city with the given id. Throws 404 if not found. */
     public CityDto getById(Long id) {
         return cityRepository.findById(id)
@@ -42,9 +38,12 @@ public class CityService {
                 .toList();
     }
 
-    /** Builds a CloudFront URL for one of the city's cover images, picked at random in [1, cover-count]. City and country names must be ASCII English; non-ASCII characters would be stripped to hyphens and produce a broken URL. */
+    /** Builds a CloudFront URL for the city's cover image. Currently always picks cover_1 — see TODO below. City and country names must be ASCII English; non-ASCII characters would be stripped to hyphens and produce a broken URL. */
     public String buildCoverUrl(CityEntity city) {
-        int n = ThreadLocalRandom.current().nextInt(1, coverCount + 1);
+        // TODO: revert to random selection in [1, pinnel.cdn.cover-count] once covers 2..N
+        //       exist for every city. Restore the @Value("${pinnel.cdn.cover-count}") field,
+        //       the ThreadLocalRandom import, and the cover-count property.
+        int n = 1;
         String path = coverPathTemplate
                 .replace("{country}", slugify(city.getCountry()))
                 .replace("{city}", slugify(city.getName()))
