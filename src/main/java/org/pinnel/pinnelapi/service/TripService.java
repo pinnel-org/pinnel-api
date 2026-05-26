@@ -1,6 +1,7 @@
 package org.pinnel.pinnelapi.service;
 
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -27,6 +28,7 @@ public class TripService {
     private final TripRepository tripRepository;
     private final CityRepository cityRepository;
     private final PinRepository pinRepository;
+    private final CityService cityService;
 
     /** Lists the caller's trips. Each returned DTO includes the trip's current city/pin ids. */
     @Transactional(readOnly = true)
@@ -43,20 +45,29 @@ public class TripService {
         return TripDto.from(getOwnTrip(caller, id));
     }
 
-    /** Creates a trip owned by the caller. cityIds / pinIds in the request are attached; unknown ids → 400. */
+    /** Creates a trip owned by the caller. cityIds / pinIds in the request are attached; unknown ids → 400. coverImageUrl is set from a random cover of the lowest-id attached city, or null if no cities are attached. */
     @Transactional
     public TripDto create(UserEntity caller, TripDto request) {
         Instant now = Instant.now();
+        Set<CityEntity> cities = resolveCities(request.cityIds());
         TripEntity saved = tripRepository.save(TripEntity.builder()
                 .name(request.name())
                 .budget(request.budget())
                 .user(caller)
                 .createdAt(now)
                 .updatedAt(now)
-                .cities(resolveCities(request.cityIds()))
+                .cities(cities)
                 .pins(resolvePins(request.pinIds()))
+                .coverImageUrl(resolveCoverImageUrl(cities))
                 .build());
         return TripDto.from(saved);
+    }
+
+    private String resolveCoverImageUrl(Set<CityEntity> cities) {
+        return cities.stream()
+                .min(Comparator.comparing(CityEntity::getId))
+                .map(cityService::buildCoverUrl)
+                .orElse(null);
     }
 
     /** Strict-replace of the trip's editable fields (name, budget, cityIds, pinIds). Throws 404 if missing / not the caller's, 400 if any city or pin id is unknown. */

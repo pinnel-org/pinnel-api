@@ -48,6 +48,9 @@ class TripServiceTest {
     @Mock
     private PinRepository pinRepository;
 
+    @Mock
+    private CityService cityService;
+
     @InjectMocks
     private TripService tripService;
 
@@ -78,7 +81,7 @@ class TripServiceTest {
     }
 
     private TripDto request(String name, BigDecimal budget, Set<Long> cityIds, Set<Long> pinIds) {
-        return new TripDto(null, name, budget, null, cityIds, pinIds, null, null);
+        return new TripDto(null, name, budget, null, cityIds, pinIds, null, null, null);
     }
 
     @Test
@@ -185,6 +188,23 @@ class TripServiceTest {
         assertThat(captor.getValue().getPins()).containsExactly(pin);
         assertThat(result.cityIds()).containsExactlyInAnyOrder(cityId1, cityId2);
         assertThat(result.pinIds()).containsExactly(pinId);
+    }
+
+    @Test
+    void createSetsCoverImageUrlFromLowestIdCity() {
+        Long cityId1 = 11L;
+        Long cityId2 = 10L;
+        CityEntity city1 = CityEntity.builder().id(cityId1).build();
+        CityEntity city2 = CityEntity.builder().id(cityId2).build();
+        String expectedUrl = "https://cdn.example/countries/x/cities/y/cover_3.jpg";
+        given(cityRepository.findAllById(anyIterable())).willReturn(List.of(city1, city2));
+        given(cityService.buildCoverUrl(city2)).willReturn(expectedUrl);
+        given(tripRepository.save(any(TripEntity.class))).willAnswer(inv -> inv.getArgument(0));
+
+        TripDto result = tripService.create(caller,
+                request("Trip", null, Set.of(cityId1, cityId2), Set.of()));
+
+        assertThat(result.coverImageUrl()).isEqualTo(expectedUrl);
     }
 
     @Test

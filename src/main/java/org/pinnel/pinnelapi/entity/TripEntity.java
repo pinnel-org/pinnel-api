@@ -40,6 +40,9 @@ public class TripEntity {
     @Column(precision = 12, scale = 2)
     private BigDecimal budget;
 
+    @Column(name = "cover_image_url", length = 512)
+    private String coverImageUrl;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
     private UserEntity user;
