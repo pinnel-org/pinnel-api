@@ -1,6 +1,7 @@
 package org.pinnel.pinnelapi.service;
 
 import java.time.Instant;
+import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.pinnel.pinnelapi.dto.UserDto;
@@ -57,5 +58,22 @@ public class UserService {
     /** Returns the distinct set of country names appearing across all cities of the caller's trips. */
     public Set<String> listMyCountries(UserEntity user) {
         return tripRepository.findDistinctCountriesByUserId(user.getId());
+    }
+
+    /** Returns the current user's avatar bytes, or empty if no avatar is set. */
+    public Optional<byte[]> getCurrentUserAvatar(UserEntity user) {
+        return Optional.ofNullable(userRepository.findAvatarById(user.getId()));
+    }
+
+    /** Replaces the current user's avatar with the given bytes and bumps updatedAt. */
+    @Transactional
+    public void saveCurrentUserAvatar(UserEntity user, byte[] avatar) {
+        userRepository.updateAvatarById(user.getId(), avatar, Instant.now());
+    }
+
+    /** Clears the current user's avatar (sets it to null) and bumps updatedAt. Idempotent. */
+    @Transactional
+    public void deleteCurrentUserAvatar(UserEntity user) {
+        userRepository.updateAvatarById(user.getId(), null, Instant.now());
     }
 }

@@ -1,7 +1,11 @@
 package org.pinnel.pinnelapi.controller;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -19,6 +23,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -88,6 +93,93 @@ class UserControllerTest {
                         .header("X-Cognito-Username", "iso"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", Matchers.hasSize(0)));
+    }
+
+    @Test
+    void uploadAvatarStoresBytesAndGetReturnsThemAsImageJpeg() throws Exception {
+        String cognitoId = "avatar-roundtrip";
+        saveUser(cognitoId, "ava@pinnel.io", "ava");
+        byte[] bytes = {1, 2, 3, 4, 5};
+        MockMultipartFile file = new MockMultipartFile("file", "avatar.jpg", "image/jpeg", bytes);
+
+        mvc.perform(multipart("/api/me/avatar")
+                        .file(file)
+                        .header("X-Cognito-Id", cognitoId)
+                        .header("X-Cognito-Email", "ava@pinnel.io")
+                        .header("X-Cognito-Username", "ava"))
+                .andExpect(status().isNoContent());
+
+        mvc.perform(get("/api/me/avatar")
+                        .header("X-Cognito-Id", cognitoId)
+                        .header("X-Cognito-Email", "ava@pinnel.io")
+                        .header("X-Cognito-Username", "ava"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type", MediaType.IMAGE_JPEG_VALUE))
+                .andExpect(result -> assertThat(result.getResponse().getContentAsByteArray()).isEqualTo(bytes));
+    }
+
+    @Test
+    void getAvatarReturns404WhenUserHasNoAvatar() throws Exception {
+        String cognitoId = "no-avatar";
+        saveUser(cognitoId, "noava@pinnel.io", "noava");
+
+        mvc.perform(get("/api/me/avatar")
+                        .header("X-Cognito-Id", cognitoId)
+                        .header("X-Cognito-Email", "noava@pinnel.io")
+                        .header("X-Cognito-Username", "noava"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void uploadAvatarReturns400WhenFileIsEmpty() throws Exception {
+        String cognitoId = "empty-file";
+        saveUser(cognitoId, "empty@pinnel.io", "empty");
+        MockMultipartFile empty = new MockMultipartFile("file", "avatar.jpg", "image/jpeg", new byte[0]);
+
+        mvc.perform(multipart("/api/me/avatar")
+                        .file(empty)
+                        .header("X-Cognito-Id", cognitoId)
+                        .header("X-Cognito-Email", "empty@pinnel.io")
+                        .header("X-Cognito-Username", "empty"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void deleteAvatarClearsExistingAvatarAndSubsequentGetReturns404() throws Exception {
+        String cognitoId = "delete-avatar";
+        saveUser(cognitoId, "del@pinnel.io", "del");
+        MockMultipartFile file = new MockMultipartFile("file", "a.jpg", "image/jpeg", new byte[]{7, 7, 7});
+
+        mvc.perform(multipart("/api/me/avatar")
+                        .file(file)
+                        .header("X-Cognito-Id", cognitoId)
+                        .header("X-Cognito-Email", "del@pinnel.io")
+                        .header("X-Cognito-Username", "del"))
+                .andExpect(status().isNoContent());
+
+        mvc.perform(delete("/api/me/avatar")
+                        .header("X-Cognito-Id", cognitoId)
+                        .header("X-Cognito-Email", "del@pinnel.io")
+                        .header("X-Cognito-Username", "del"))
+                .andExpect(status().isNoContent());
+
+        mvc.perform(get("/api/me/avatar")
+                        .header("X-Cognito-Id", cognitoId)
+                        .header("X-Cognito-Email", "del@pinnel.io")
+                        .header("X-Cognito-Username", "del"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void deleteAvatarIsIdempotentWhenUserHasNoAvatar() throws Exception {
+        String cognitoId = "idempotent-delete";
+        saveUser(cognitoId, "idem@pinnel.io", "idem");
+
+        mvc.perform(delete("/api/me/avatar")
+                        .header("X-Cognito-Id", cognitoId)
+                        .header("X-Cognito-Email", "idem@pinnel.io")
+                        .header("X-Cognito-Username", "idem"))
+                .andExpect(status().isNoContent());
     }
 
     private UserEntity saveUser(String cognitoId, String email, String username) {
