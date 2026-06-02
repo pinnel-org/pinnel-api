@@ -165,7 +165,9 @@ public class TripService {
     }
 
     private void validateIds(Set<Long> requested, Set<Long> found, String field) {
-        if (requested.size() == found.size()) return;
+        if (requested.size() == found.size()) {
+            return;
+        }
         Set<Long> missing = new TreeSet<>(requested);
         missing.removeAll(found);
         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown " + field + ": " + missing);
@@ -192,7 +194,9 @@ public class TripService {
     }
 
     private Set<CityEntity> resolveCities(Set<Long> ids) {
-        if (ids.isEmpty()) return new HashSet<>();
+        if (ids.isEmpty()) {
+            return new HashSet<>();
+        }
         List<CityEntity> found = cityRepository.findAllById(ids);
         if (found.size() != ids.size()) {
             Set<Long> foundIds = found.stream().map(CityEntity::getId).collect(Collectors.toSet());
@@ -204,7 +208,9 @@ public class TripService {
     }
 
     private Set<PinEntity> resolvePins(Set<Long> ids) {
-        if (ids.isEmpty()) return new HashSet<>();
+        if (ids.isEmpty()) {
+            return new HashSet<>();
+        }
         List<PinEntity> found = pinRepository.findAllById(ids);
         if (found.size() != ids.size()) {
             Set<Long> foundIds = found.stream().map(PinEntity::getId).collect(Collectors.toSet());
