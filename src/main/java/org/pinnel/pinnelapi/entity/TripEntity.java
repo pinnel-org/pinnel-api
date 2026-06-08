@@ -61,11 +61,4 @@ public class TripEntity {
     @Builder.Default
     private Set<CityEntity> cities = new HashSet<>();
 
-    @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(
-            name = "trip_pins",
-            joinColumns = @JoinColumn(name = "trip_id"),
-            inverseJoinColumns = @JoinColumn(name = "pin_id"))
-    @Builder.Default
-    private Set<PinEntity> pins = new HashSet<>();
 }

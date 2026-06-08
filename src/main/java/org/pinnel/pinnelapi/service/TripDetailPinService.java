@@ -54,6 +54,35 @@ public class TripDetailPinService {
                 .toList();
     }
 
+    /**
+     * Moves a pin entry to a new pinOrder within its detail and renumbers all siblings to a dense 0..n-1 sequence.
+     * Order is clamped silently if too large; negative order returns 400. 404 if missing or not the caller's.
+     */
+    @Transactional
+    public TripDetailPinDto updateOrder(UserEntity caller, Long pinEntryId, int newOrder) {
+        if (newOrder < 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "order must be >= 0");
+        }
+        TripDetailPinEntity entry = tripDetailPinRepository.findById(pinEntryId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        if (!entry.getUserId().equals(caller.getId())) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        }
+
+        List<TripDetailPinEntity> siblings = tripDetailPinRepository
+                .findByTripDetail_IdAndUserIdOrderByPinOrder(entry.getTripDetail().getId(), caller.getId());
+
+        int clamped = Math.min(newOrder, siblings.size() - 1);
+        siblings.remove(entry);
+        siblings.add(clamped, entry);
+        for (int i = 0; i < siblings.size(); i++) {
+            siblings.get(i).setPinOrder(i);
+        }
+        tripDetailPinRepository.saveAll(siblings);
+
+        return TripDetailPinDto.from(entry);
+    }
+
     /** Deletes a single pin entry. Idempotent for missing; 404 if the row belongs to another user. */
     @Transactional
     public void delete(UserEntity caller, Long pinEntryId) {

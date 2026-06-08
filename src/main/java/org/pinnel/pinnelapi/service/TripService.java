@@ -10,11 +10,9 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.pinnel.pinnelapi.dto.TripDto;
 import org.pinnel.pinnelapi.entity.CityEntity;
-import org.pinnel.pinnelapi.entity.PinEntity;
 import org.pinnel.pinnelapi.entity.TripEntity;
 import org.pinnel.pinnelapi.entity.UserEntity;
 import org.pinnel.pinnelapi.repository.CityRepository;
-import org.pinnel.pinnelapi.repository.PinRepository;
 import org.pinnel.pinnelapi.repository.TripRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -27,7 +25,6 @@ public class TripService {
 
     private final TripRepository tripRepository;
     private final CityRepository cityRepository;
-    private final PinRepository pinRepository;
     private final CityService cityService;
 
     @Transactional(readOnly = true)
@@ -54,7 +51,6 @@ public class TripService {
                 .createdAt(now)
                 .updatedAt(now)
                 .cities(cities)
-                .pins(resolvePins(request.pinIds()))
                 .coverImageUrl(resolveCoverImageUrl(cities))
                 .build());
         return TripDto.from(saved);
@@ -66,7 +62,6 @@ public class TripService {
         trip.setName(request.name());
         trip.setBudget(request.budget());
         trip.setCities(resolveCities(request.cityIds()));
-        trip.setPins(resolvePins(request.pinIds()));
         trip.setUpdatedAt(Instant.now());
         tripRepository.save(trip);
         return TripDto.from(trip);
@@ -110,20 +105,6 @@ public class TripService {
             Set<Long> missing = new TreeSet<>(ids);
             missing.removeAll(foundIds);
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown cityIds: " + missing);
-        }
-        return new HashSet<>(found);
-    }
-
-    private Set<PinEntity> resolvePins(Set<Long> ids) {
-        if (ids.isEmpty()) {
-            return new HashSet<>();
-        }
-        List<PinEntity> found = pinRepository.findAllById(ids);
-        if (found.size() != ids.size()) {
-            Set<Long> foundIds = found.stream().map(PinEntity::getId).collect(Collectors.toSet());
-            Set<Long> missing = new TreeSet<>(ids);
-            missing.removeAll(foundIds);
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown pinIds: " + missing);
         }
         return new HashSet<>(found);
     }
