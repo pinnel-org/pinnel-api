@@ -23,12 +23,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.pinnel.pinnelapi.dto.TripDto;
 import org.pinnel.pinnelapi.entity.CityEntity;
 import org.pinnel.pinnelapi.entity.PinEntity;
-import org.pinnel.pinnelapi.entity.TripDayEntity;
 import org.pinnel.pinnelapi.entity.TripEntity;
 import org.pinnel.pinnelapi.entity.UserEntity;
 import org.pinnel.pinnelapi.repository.CityRepository;
 import org.pinnel.pinnelapi.repository.PinRepository;
-import org.pinnel.pinnelapi.repository.TripDayRepository;
 import org.pinnel.pinnelapi.repository.TripRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
@@ -49,9 +47,6 @@ class TripServiceTest {
 
     @Mock
     private PinRepository pinRepository;
-
-    @Mock
-    private TripDayRepository tripDayRepository;
 
     @Mock
     private CityService cityService;
@@ -86,13 +81,12 @@ class TripServiceTest {
     }
 
     private TripDto request(String name, BigDecimal budget, Set<Long> cityIds, Set<Long> pinIds) {
-        return new TripDto(null, name, budget, null, cityIds, pinIds, null, null, null, null);
+        return new TripDto(null, name, budget, null, cityIds, pinIds, null, null, null);
     }
 
     @Test
     void listMineReturnsCallerTripsWithCityAndPinIds() {
         given(tripRepository.findByUserId(CALLER_ID)).willReturn(List.of(trip(TRIP_ID, caller)));
-        given(tripDayRepository.findByTripIdWithDetails(TRIP_ID)).willReturn(List.of());
 
         List<TripDto> result = tripService.listMine(caller);
 
@@ -107,7 +101,6 @@ class TripServiceTest {
     @Test
     void getByIdReturnsOwnTrip() {
         given(tripRepository.findById(TRIP_ID)).willReturn(Optional.of(trip(TRIP_ID, caller)));
-        given(tripDayRepository.findByTripIdWithDetails(TRIP_ID)).willReturn(List.of());
 
         TripDto result = tripService.getById(caller, TRIP_ID);
 
