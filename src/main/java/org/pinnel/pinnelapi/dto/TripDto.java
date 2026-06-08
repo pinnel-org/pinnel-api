@@ -6,12 +6,10 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.pinnel.pinnelapi.entity.CityEntity;
 import org.pinnel.pinnelapi.entity.PinEntity;
-import org.pinnel.pinnelapi.entity.TripDayEntity;
 import org.pinnel.pinnelapi.entity.TripEntity;
 
 public record TripDto(
@@ -22,11 +20,10 @@ public record TripDto(
         @NotNull Set<Long> cityIds,
         @NotNull Set<Long> pinIds,
         String coverImageUrl,
-        List<TripDayDto> days,
         Instant createdAt,
         Instant updatedAt
 ) {
-    public static TripDto from(TripEntity trip, List<TripDayEntity> days) {
+    public static TripDto from(TripEntity trip) {
         return new TripDto(
                 trip.getId(),
                 trip.getName(),
@@ -35,7 +32,6 @@ public record TripDto(
                 trip.getCities().stream().map(CityEntity::getId).collect(Collectors.toUnmodifiableSet()),
                 trip.getPins().stream().map(PinEntity::getId).collect(Collectors.toUnmodifiableSet()),
                 trip.getCoverImageUrl(),
-                days.stream().map(TripDayDto::from).toList(),
                 trip.getCreatedAt(),
                 trip.getUpdatedAt()
         );
