@@ -45,6 +45,15 @@ public class TripDetailService {
         return TripDetailDto.from(saved);
     }
 
+    /** Returns all details for a trip ordered by visitDate then cityOrder. Returns empty list if none exist. */
+    public List<TripDetailDto> listAll(UserEntity caller, Long tripId) {
+        getTripOwnedBy(caller, tripId);
+        return tripDetailRepository.findByTrip_IdAndUserIdOrderByVisitDateAscCityOrderAsc(tripId, caller.getId())
+                .stream()
+                .map(TripDetailDto::from)
+                .toList();
+    }
+
     /** Returns details for a day ordered by cityOrder. Returns empty list if the day was never persisted. */
     public List<TripDetailDto> listByDate(UserEntity caller, Long tripId, LocalDate date) {
         getTripOwnedBy(caller, tripId);

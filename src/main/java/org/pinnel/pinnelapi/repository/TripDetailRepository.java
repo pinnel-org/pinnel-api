@@ -22,6 +22,9 @@ public interface TripDetailRepository extends JpaRepository<TripDetailEntity, Lo
     @Query("DELETE FROM TripDetailEntity td WHERE td.id = :id AND td.userId = :userId")
     int deleteByIdAndUserId(@Param("id") Long id, @Param("userId") Long userId);
 
+    /** Returns all details for a given (tripId, userId) ordered by visitDate then cityOrder ascending. */
+    List<TripDetailEntity> findByTrip_IdAndUserIdOrderByVisitDateAscCityOrderAsc(Long tripId, Long userId);
+
     /** Bulk-deletes all details for a given (tripId, userId, visitDate). Returns rows affected. DB cascade removes trip_detail_pins. */
     @Modifying
     @Query("DELETE FROM TripDetailEntity td WHERE td.trip.id = :tripId AND td.userId = :userId AND td.visitDate = :visitDate")

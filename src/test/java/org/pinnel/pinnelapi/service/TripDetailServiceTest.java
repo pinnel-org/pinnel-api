@@ -141,6 +141,53 @@ class TripDetailServiceTest {
     }
 
     @Test
+    void listAllReturnsAllDetailsOrderedByVisitDateThenCityOrder() {
+        TripDetailEntity d1 = TripDetailEntity.builder().id(1L).trip(trip).userId(CALLER_ID)
+                .visitDate(VISIT_DATE).city(city).cityOrder(0).build();
+        TripDetailEntity d2 = TripDetailEntity.builder().id(2L).trip(trip).userId(CALLER_ID)
+                .visitDate(VISIT_DATE.plusDays(1)).city(city).cityOrder(0).build();
+        given(tripRepository.findById(TRIP_ID)).willReturn(Optional.of(trip));
+        given(tripDetailRepository.findByTrip_IdAndUserIdOrderByVisitDateAscCityOrderAsc(TRIP_ID, CALLER_ID))
+                .willReturn(List.of(d1, d2));
+
+        List<TripDetailDto> result = tripDetailService.listAll(caller, TRIP_ID);
+
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0).id()).isEqualTo(1L);
+        assertThat(result.get(1).id()).isEqualTo(2L);
+    }
+
+    @Test
+    void listAllReturnsEmptyListWhenNoDetails() {
+        given(tripRepository.findById(TRIP_ID)).willReturn(Optional.of(trip));
+        given(tripDetailRepository.findByTrip_IdAndUserIdOrderByVisitDateAscCityOrderAsc(TRIP_ID, CALLER_ID))
+                .willReturn(List.of());
+
+        List<TripDetailDto> result = tripDetailService.listAll(caller, TRIP_ID);
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void listAllThrows404WhenTripMissing() {
+        given(tripRepository.findById(TRIP_ID)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> tripDetailService.listAll(caller, TRIP_ID))
+                .isInstanceOfSatisfying(ResponseStatusException.class,
+                        ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
+    }
+
+    @Test
+    void listAllThrows404WhenTripOwnedByAnotherUser() {
+        TripEntity otherTrip = TripEntity.builder().id(TRIP_ID).name("Other").user(otherUser).build();
+        given(tripRepository.findById(TRIP_ID)).willReturn(Optional.of(otherTrip));
+
+        assertThatThrownBy(() -> tripDetailService.listAll(caller, TRIP_ID))
+                .isInstanceOfSatisfying(ResponseStatusException.class,
+                        ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
+    }
+
+    @Test
     void listByDateReturnsDetailsOrderedByCityOrder() {
         TripDetailEntity d1 = TripDetailEntity.builder().id(1L).trip(trip).userId(CALLER_ID)
                 .visitDate(VISIT_DATE).city(city).cityOrder(0).build();
