@@ -35,3 +35,6 @@ build/
 
 ### Local scripts (not for version control) ###
 scripts/
+
+### Local Claude Code overrides ###
+CLAUDE.local.md

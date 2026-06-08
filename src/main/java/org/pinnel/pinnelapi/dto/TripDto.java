@@ -9,7 +9,6 @@ import java.time.Instant;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.pinnel.pinnelapi.entity.CityEntity;
-import org.pinnel.pinnelapi.entity.PinEntity;
 import org.pinnel.pinnelapi.entity.TripEntity;
 
 public record TripDto(
@@ -18,7 +17,6 @@ public record TripDto(
         @DecimalMin("0") BigDecimal budget,
         Long userId,
         @NotNull Set<Long> cityIds,
-        @NotNull Set<Long> pinIds,
         String coverImageUrl,
         Instant createdAt,
         Instant updatedAt
@@ -30,7 +28,6 @@ public record TripDto(
                 trip.getBudget(),
                 trip.getUser().getId(),
                 trip.getCities().stream().map(CityEntity::getId).collect(Collectors.toUnmodifiableSet()),
-                trip.getPins().stream().map(PinEntity::getId).collect(Collectors.toUnmodifiableSet()),
                 trip.getCoverImageUrl(),
                 trip.getCreatedAt(),
                 trip.getUpdatedAt()

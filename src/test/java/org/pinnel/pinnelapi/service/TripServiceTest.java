@@ -94,7 +94,6 @@ class TripServiceTest {
             assertThat(t.id()).isEqualTo(TRIP_ID);
             assertThat(t.userId()).isEqualTo(CALLER_ID);
             assertThat(t.cityIds()).containsExactly(10L);
-            assertThat(t.pinIds()).containsExactly(20L);
         });
     }
 
@@ -106,7 +105,6 @@ class TripServiceTest {
 
         assertThat(result.id()).isEqualTo(TRIP_ID);
         assertThat(result.cityIds()).containsExactly(10L);
-        assertThat(result.pinIds()).containsExactly(20L);
     }
 
     @Test
@@ -187,7 +185,6 @@ class TripServiceTest {
         assertThat(captor.getValue().getCities()).containsExactlyInAnyOrder(city1, city2);
         assertThat(captor.getValue().getPins()).containsExactly(pin);
         assertThat(result.cityIds()).containsExactlyInAnyOrder(cityId1, cityId2);
-        assertThat(result.pinIds()).containsExactly(pinId);
     }
 
     @Test
