@@ -200,4 +200,66 @@ class TripDetailServiceTest {
                 });
         verify(tripDetailRepository, never()).save(any());
     }
+
+    @Test
+    void deleteSingleRemovesDetailWhenOwner() {
+        TripDetailEntity detail = TripDetailEntity.builder().id(DETAIL_ID).trip(trip)
+                .userId(CALLER_ID).visitDate(VISIT_DATE).city(city).cityOrder(0).build();
+        given(tripDetailRepository.findById(DETAIL_ID)).willReturn(Optional.of(detail));
+
+        tripDetailService.deleteSingle(caller, DETAIL_ID);
+
+        verify(tripDetailRepository).deleteById(DETAIL_ID);
+    }
+
+    @Test
+    void deleteSingleIsIdempotentWhenMissing() {
+        given(tripDetailRepository.findById(DETAIL_ID)).willReturn(Optional.empty());
+
+        tripDetailService.deleteSingle(caller, DETAIL_ID);
+
+        verify(tripDetailRepository, never()).deleteById(any());
+    }
+
+    @Test
+    void deleteSingleThrows404WhenOwnedByAnotherUser() {
+        TripDetailEntity detail = TripDetailEntity.builder().id(DETAIL_ID).trip(trip)
+                .userId(OTHER_USER_ID).visitDate(VISIT_DATE).city(city).cityOrder(0).build();
+        given(tripDetailRepository.findById(DETAIL_ID)).willReturn(Optional.of(detail));
+
+        assertThatThrownBy(() -> tripDetailService.deleteSingle(caller, DETAIL_ID))
+                .isInstanceOfSatisfying(ResponseStatusException.class,
+                        ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
+        verify(tripDetailRepository, never()).deleteById(any());
+    }
+
+    @Test
+    void deleteByDateDeletesAllDetailsForDay() {
+        given(tripRepository.findById(TRIP_ID)).willReturn(Optional.of(trip));
+
+        tripDetailService.deleteByDate(caller, TRIP_ID, VISIT_DATE);
+
+        verify(tripDetailRepository).deleteByTripAndUserAndDate(TRIP_ID, CALLER_ID, VISIT_DATE);
+    }
+
+    @Test
+    void deleteByDateThrows404WhenTripMissing() {
+        given(tripRepository.findById(TRIP_ID)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> tripDetailService.deleteByDate(caller, TRIP_ID, VISIT_DATE))
+                .isInstanceOfSatisfying(ResponseStatusException.class,
+                        ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
+        verify(tripDetailRepository, never()).deleteByTripAndUserAndDate(any(), any(), any());
+    }
+
+    @Test
+    void deleteByDateThrows404WhenTripOwnedByAnotherUser() {
+        TripEntity otherTrip = TripEntity.builder().id(TRIP_ID).name("Other").user(otherUser).build();
+        given(tripRepository.findById(TRIP_ID)).willReturn(Optional.of(otherTrip));
+
+        assertThatThrownBy(() -> tripDetailService.deleteByDate(caller, TRIP_ID, VISIT_DATE))
+                .isInstanceOfSatisfying(ResponseStatusException.class,
+                        ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
+        verify(tripDetailRepository, never()).deleteByTripAndUserAndDate(any(), any(), any());
+    }
 }
