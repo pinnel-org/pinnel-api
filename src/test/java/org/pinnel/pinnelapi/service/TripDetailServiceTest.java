@@ -147,7 +147,7 @@ class TripDetailServiceTest {
         TripDetailEntity d2 = TripDetailEntity.builder().id(2L).trip(trip).userId(CALLER_ID)
                 .visitDate(VISIT_DATE).city(city).cityOrder(1).build();
         given(tripRepository.findById(TRIP_ID)).willReturn(Optional.of(trip));
-        given(tripDetailRepository.findByTripIdAndVisitDateOrderByCityOrder(TRIP_ID, VISIT_DATE))
+        given(tripDetailRepository.findByTrip_IdAndUserIdAndVisitDateOrderByCityOrder(TRIP_ID, CALLER_ID, VISIT_DATE))
                 .willReturn(List.of(d1, d2));
 
         List<TripDetailDto> result = tripDetailService.listByDate(caller, TRIP_ID, VISIT_DATE);
@@ -160,7 +160,7 @@ class TripDetailServiceTest {
     @Test
     void listByDateReturnsEmptyListWhenDayNotPersisted() {
         given(tripRepository.findById(TRIP_ID)).willReturn(Optional.of(trip));
-        given(tripDetailRepository.findByTripIdAndVisitDateOrderByCityOrder(TRIP_ID, VISIT_DATE))
+        given(tripDetailRepository.findByTrip_IdAndUserIdAndVisitDateOrderByCityOrder(TRIP_ID, CALLER_ID, VISIT_DATE))
                 .willReturn(List.of());
 
         List<TripDetailDto> result = tripDetailService.listByDate(caller, TRIP_ID, VISIT_DATE);

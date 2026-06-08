@@ -48,7 +48,7 @@ public class TripDetailService {
     /** Returns details for a day ordered by cityOrder. Returns empty list if the day was never persisted. */
     public List<TripDetailDto> listByDate(UserEntity caller, Long tripId, LocalDate date) {
         getTripOwnedBy(caller, tripId);
-        return tripDetailRepository.findByTripIdAndVisitDateOrderByCityOrder(tripId, date)
+        return tripDetailRepository.findByTrip_IdAndUserIdAndVisitDateOrderByCityOrder(tripId, caller.getId(), date)
                 .stream()
                 .map(TripDetailDto::from)
                 .toList();
