@@ -56,20 +56,21 @@ public class TripDetailService {
 
     /** Deletes a single trip_detail. Idempotent for missing; 404 if the row belongs to another user. */
     @Transactional
-    public void deleteSingle(UserEntity caller, Long detailId) {
-        tripDetailRepository.findById(detailId).ifPresent(detail -> {
-            if (!detail.getUserId().equals(caller.getId())) {
-                throw new ResponseStatusException(HttpStatus.NOT_FOUND);
-            }
-            tripDetailRepository.deleteById(detailId);
-        });
+    public void delete(UserEntity caller, Long detailId) {
+        if (!tripDetailRepository.existsById(detailId)) {
+            return;
+        }
+        int deleted = tripDetailRepository.deleteByIdAndUserId(detailId, caller.getId());
+        if (deleted == 0) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        }
     }
 
     /** Bulk-deletes all details for a given (tripId, date). 404 if trip missing or not the caller's. */
     @Transactional
-    public void deleteByDate(UserEntity caller, Long tripId, LocalDate date) {
+    public void delete(UserEntity caller, Long tripId, LocalDate date) {
         getTripOwnedBy(caller, tripId);
-        tripDetailRepository.deleteByTripAndUserAndDate(tripId, caller.getId(), date);
+        tripDetailRepository.deleteByTripIdAndUserIdAndVisitDate(tripId, caller.getId(), date);
     }
 
     private TripEntity getTripOwnedBy(UserEntity caller, Long tripId) {

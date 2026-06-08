@@ -202,54 +202,51 @@ class TripDetailServiceTest {
     }
 
     @Test
-    void deleteSingleRemovesDetailWhenOwner() {
-        TripDetailEntity detail = TripDetailEntity.builder().id(DETAIL_ID).trip(trip)
-                .userId(CALLER_ID).visitDate(VISIT_DATE).city(city).cityOrder(0).build();
-        given(tripDetailRepository.findById(DETAIL_ID)).willReturn(Optional.of(detail));
+    void deleteRemovesDetailWhenOwner() {
+        given(tripDetailRepository.existsById(DETAIL_ID)).willReturn(true);
+        given(tripDetailRepository.deleteByIdAndUserId(DETAIL_ID, CALLER_ID)).willReturn(1);
 
-        tripDetailService.deleteSingle(caller, DETAIL_ID);
+        tripDetailService.delete(caller, DETAIL_ID);
 
-        verify(tripDetailRepository).deleteById(DETAIL_ID);
+        verify(tripDetailRepository).deleteByIdAndUserId(DETAIL_ID, CALLER_ID);
     }
 
     @Test
-    void deleteSingleIsIdempotentWhenMissing() {
-        given(tripDetailRepository.findById(DETAIL_ID)).willReturn(Optional.empty());
+    void deleteIsIdempotentWhenMissing() {
+        given(tripDetailRepository.existsById(DETAIL_ID)).willReturn(false);
 
-        tripDetailService.deleteSingle(caller, DETAIL_ID);
+        tripDetailService.delete(caller, DETAIL_ID);
 
-        verify(tripDetailRepository, never()).deleteById(any());
+        verify(tripDetailRepository, never()).deleteByIdAndUserId(any(), any());
     }
 
     @Test
-    void deleteSingleThrows404WhenOwnedByAnotherUser() {
-        TripDetailEntity detail = TripDetailEntity.builder().id(DETAIL_ID).trip(trip)
-                .userId(OTHER_USER_ID).visitDate(VISIT_DATE).city(city).cityOrder(0).build();
-        given(tripDetailRepository.findById(DETAIL_ID)).willReturn(Optional.of(detail));
+    void deleteThrows404WhenOwnedByAnotherUser() {
+        given(tripDetailRepository.existsById(DETAIL_ID)).willReturn(true);
+        given(tripDetailRepository.deleteByIdAndUserId(DETAIL_ID, CALLER_ID)).willReturn(0);
 
-        assertThatThrownBy(() -> tripDetailService.deleteSingle(caller, DETAIL_ID))
+        assertThatThrownBy(() -> tripDetailService.delete(caller, DETAIL_ID))
                 .isInstanceOfSatisfying(ResponseStatusException.class,
                         ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
-        verify(tripDetailRepository, never()).deleteById(any());
     }
 
     @Test
     void deleteByDateDeletesAllDetailsForDay() {
         given(tripRepository.findById(TRIP_ID)).willReturn(Optional.of(trip));
 
-        tripDetailService.deleteByDate(caller, TRIP_ID, VISIT_DATE);
+        tripDetailService.delete(caller, TRIP_ID, VISIT_DATE);
 
-        verify(tripDetailRepository).deleteByTripAndUserAndDate(TRIP_ID, CALLER_ID, VISIT_DATE);
+        verify(tripDetailRepository).deleteByTripIdAndUserIdAndVisitDate(TRIP_ID, CALLER_ID, VISIT_DATE);
     }
 
     @Test
     void deleteByDateThrows404WhenTripMissing() {
         given(tripRepository.findById(TRIP_ID)).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> tripDetailService.deleteByDate(caller, TRIP_ID, VISIT_DATE))
+        assertThatThrownBy(() -> tripDetailService.delete(caller, TRIP_ID, VISIT_DATE))
                 .isInstanceOfSatisfying(ResponseStatusException.class,
                         ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
-        verify(tripDetailRepository, never()).deleteByTripAndUserAndDate(any(), any(), any());
+        verify(tripDetailRepository, never()).deleteByTripIdAndUserIdAndVisitDate(any(), any(), any());
     }
 
     @Test
@@ -257,9 +254,9 @@ class TripDetailServiceTest {
         TripEntity otherTrip = TripEntity.builder().id(TRIP_ID).name("Other").user(otherUser).build();
         given(tripRepository.findById(TRIP_ID)).willReturn(Optional.of(otherTrip));
 
-        assertThatThrownBy(() -> tripDetailService.deleteByDate(caller, TRIP_ID, VISIT_DATE))
+        assertThatThrownBy(() -> tripDetailService.delete(caller, TRIP_ID, VISIT_DATE))
                 .isInstanceOfSatisfying(ResponseStatusException.class,
                         ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
-        verify(tripDetailRepository, never()).deleteByTripAndUserAndDate(any(), any(), any());
+        verify(tripDetailRepository, never()).deleteByTripIdAndUserIdAndVisitDate(any(), any(), any());
     }
 }

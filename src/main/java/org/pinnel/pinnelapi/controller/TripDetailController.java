@@ -28,7 +28,7 @@ public class TripDetailController {
     @DeleteMapping("/api/trip-details/{detailId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@CurrentUser UserEntity caller, @PathVariable Long detailId) {
-        tripDetailService.deleteSingle(caller, detailId);
+        tripDetailService.delete(caller, detailId);
     }
 
     /** DELETE /api/trips/{tripId}/trip-details?date={date} — bulk-removes all details for a day. 204 always; 404 if trip missing or not caller's. */
@@ -37,7 +37,7 @@ public class TripDetailController {
     public void delete(@CurrentUser UserEntity caller,
                        @PathVariable Long tripId,
                        @RequestParam LocalDate date) {
-        tripDetailService.deleteByDate(caller, tripId, date);
+        tripDetailService.delete(caller, tripId, date);
     }
 
     /** GET /api/trips/{tripId}/trip-details?date={date} — lists details for a day ordered by cityOrder. Returns 200 [] if the day was never persisted. */

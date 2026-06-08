@@ -17,8 +17,13 @@ public interface TripDetailRepository extends JpaRepository<TripDetailEntity, Lo
     /** Returns all details for a given (tripId, userId, visitDate) ordered by cityOrder ascending. */
     List<TripDetailEntity> findByTrip_IdAndUserIdAndVisitDateOrderByCityOrder(Long tripId, Long userId, LocalDate visitDate);
 
-    /** Bulk-deletes all details for a given (tripId, userId, visitDate). DB cascade removes trip_detail_pins. */
+    /** Deletes a single detail by id + userId. Returns 1 if deleted, 0 if the id exists but belongs to another user. */
     @Modifying
-    @Query("DELETE FROM TripDetailEntity td WHERE td.trip.id = :tripId AND td.userId = :userId AND td.visitDate = :date")
-    void deleteByTripAndUserAndDate(@Param("tripId") Long tripId, @Param("userId") Long userId, @Param("date") LocalDate date);
+    @Query("DELETE FROM TripDetailEntity td WHERE td.id = :id AND td.userId = :userId")
+    int deleteByIdAndUserId(@Param("id") Long id, @Param("userId") Long userId);
+
+    /** Bulk-deletes all details for a given (tripId, userId, visitDate). Returns rows affected. DB cascade removes trip_detail_pins. */
+    @Modifying
+    @Query("DELETE FROM TripDetailEntity td WHERE td.trip.id = :tripId AND td.userId = :userId AND td.visitDate = :visitDate")
+    int deleteByTripIdAndUserIdAndVisitDate(@Param("tripId") Long tripId, @Param("userId") Long userId, @Param("visitDate") LocalDate visitDate);
 }
