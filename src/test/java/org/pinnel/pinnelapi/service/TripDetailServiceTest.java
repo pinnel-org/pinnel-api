@@ -234,7 +234,7 @@ class TripDetailServiceTest {
     void deleteByDateDeletesAllDetailsForDay() {
         given(tripRepository.findById(TRIP_ID)).willReturn(Optional.of(trip));
 
-        tripDetailService.delete(caller, TRIP_ID, VISIT_DATE);
+        tripDetailService.deleteByDate(caller, TRIP_ID, VISIT_DATE);
 
         verify(tripDetailRepository).deleteByTripIdAndUserIdAndVisitDate(TRIP_ID, CALLER_ID, VISIT_DATE);
     }
@@ -243,7 +243,7 @@ class TripDetailServiceTest {
     void deleteByDateThrows404WhenTripMissing() {
         given(tripRepository.findById(TRIP_ID)).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> tripDetailService.delete(caller, TRIP_ID, VISIT_DATE))
+        assertThatThrownBy(() -> tripDetailService.deleteByDate(caller, TRIP_ID, VISIT_DATE))
                 .isInstanceOfSatisfying(ResponseStatusException.class,
                         ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
         verify(tripDetailRepository, never()).deleteByTripIdAndUserIdAndVisitDate(any(), any(), any());
@@ -254,7 +254,7 @@ class TripDetailServiceTest {
         TripEntity otherTrip = TripEntity.builder().id(TRIP_ID).name("Other").user(otherUser).build();
         given(tripRepository.findById(TRIP_ID)).willReturn(Optional.of(otherTrip));
 
-        assertThatThrownBy(() -> tripDetailService.delete(caller, TRIP_ID, VISIT_DATE))
+        assertThatThrownBy(() -> tripDetailService.deleteByDate(caller, TRIP_ID, VISIT_DATE))
                 .isInstanceOfSatisfying(ResponseStatusException.class,
                         ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
         verify(tripDetailRepository, never()).deleteByTripIdAndUserIdAndVisitDate(any(), any(), any());

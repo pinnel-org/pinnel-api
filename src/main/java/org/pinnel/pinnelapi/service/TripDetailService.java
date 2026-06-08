@@ -68,7 +68,7 @@ public class TripDetailService {
 
     /** Bulk-deletes all details for a given (tripId, date). 404 if trip missing or not the caller's. */
     @Transactional
-    public void delete(UserEntity caller, Long tripId, LocalDate date) {
+    public void deleteByDate(UserEntity caller, Long tripId, LocalDate date) {
         getTripOwnedBy(caller, tripId);
         tripDetailRepository.deleteByTripIdAndUserIdAndVisitDate(tripId, caller.getId(), date);
     }

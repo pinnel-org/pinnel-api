@@ -37,7 +37,7 @@ public class TripDetailController {
     public void deleteByDate(@CurrentUser UserEntity caller,
                              @PathVariable Long tripId,
                              @RequestParam LocalDate date) {
-        tripDetailService.delete(caller, tripId, date);
+        tripDetailService.deleteByDate(caller, tripId, date);
     }
 
     /** GET /api/trips/{tripId}/trip-details?date={date} — lists details for a day ordered by cityOrder. Returns 200 [] if the day was never persisted. */
