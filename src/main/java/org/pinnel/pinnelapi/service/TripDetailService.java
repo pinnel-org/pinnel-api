@@ -1,5 +1,7 @@
 package org.pinnel.pinnelapi.service;
 
+import java.time.LocalDate;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.pinnel.pinnelapi.dto.TripDetailDto;
 import org.pinnel.pinnelapi.entity.CityEntity;
@@ -41,6 +43,15 @@ public class TripDetailService {
                 .build());
 
         return TripDetailDto.from(saved);
+    }
+
+    /** Returns details for a day ordered by cityOrder. Returns empty list if the day was never persisted. */
+    public List<TripDetailDto> listByDate(UserEntity caller, Long tripId, LocalDate date) {
+        getTripOwnedBy(caller, tripId);
+        return tripDetailRepository.findByTripIdAndVisitDateOrderByCityOrder(tripId, date)
+                .stream()
+                .map(TripDetailDto::from)
+                .toList();
     }
 
     private TripEntity getTripOwnedBy(UserEntity caller, Long tripId) {

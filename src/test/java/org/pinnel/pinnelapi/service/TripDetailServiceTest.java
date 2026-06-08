@@ -8,6 +8,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -137,6 +138,53 @@ class TripDetailServiceTest {
                 .isInstanceOfSatisfying(ResponseStatusException.class,
                         ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
         verify(tripDetailRepository, never()).save(any());
+    }
+
+    @Test
+    void listByDateReturnsDetailsOrderedByCityOrder() {
+        TripDetailEntity d1 = TripDetailEntity.builder().id(1L).trip(trip).userId(CALLER_ID)
+                .visitDate(VISIT_DATE).city(city).cityOrder(0).build();
+        TripDetailEntity d2 = TripDetailEntity.builder().id(2L).trip(trip).userId(CALLER_ID)
+                .visitDate(VISIT_DATE).city(city).cityOrder(1).build();
+        given(tripRepository.findById(TRIP_ID)).willReturn(Optional.of(trip));
+        given(tripDetailRepository.findByTripIdAndVisitDateOrderByCityOrder(TRIP_ID, VISIT_DATE))
+                .willReturn(List.of(d1, d2));
+
+        List<TripDetailDto> result = tripDetailService.listByDate(caller, TRIP_ID, VISIT_DATE);
+
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0).id()).isEqualTo(1L);
+        assertThat(result.get(1).id()).isEqualTo(2L);
+    }
+
+    @Test
+    void listByDateReturnsEmptyListWhenDayNotPersisted() {
+        given(tripRepository.findById(TRIP_ID)).willReturn(Optional.of(trip));
+        given(tripDetailRepository.findByTripIdAndVisitDateOrderByCityOrder(TRIP_ID, VISIT_DATE))
+                .willReturn(List.of());
+
+        List<TripDetailDto> result = tripDetailService.listByDate(caller, TRIP_ID, VISIT_DATE);
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void listByDateThrows404WhenTripMissing() {
+        given(tripRepository.findById(TRIP_ID)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> tripDetailService.listByDate(caller, TRIP_ID, VISIT_DATE))
+                .isInstanceOfSatisfying(ResponseStatusException.class,
+                        ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
+    }
+
+    @Test
+    void listByDateThrows404WhenTripOwnedByAnotherUser() {
+        TripEntity otherTrip = TripEntity.builder().id(TRIP_ID).name("Other").user(otherUser).build();
+        given(tripRepository.findById(TRIP_ID)).willReturn(Optional.of(otherTrip));
+
+        assertThatThrownBy(() -> tripDetailService.listByDate(caller, TRIP_ID, VISIT_DATE))
+                .isInstanceOfSatisfying(ResponseStatusException.class,
+                        ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
     }
 
     @Test
