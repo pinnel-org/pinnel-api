@@ -32,3 +32,6 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Local scripts (not for version control) ###
+scripts/
