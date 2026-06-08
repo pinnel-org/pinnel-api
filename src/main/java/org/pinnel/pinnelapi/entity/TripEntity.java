@@ -7,14 +7,10 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.JoinTable;
-import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.HashSet;
-import java.util.Set;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -52,20 +48,4 @@ public class TripEntity {
 
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
-
-    @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(
-            name = "trip_cities",
-            joinColumns = @JoinColumn(name = "trip_id"),
-            inverseJoinColumns = @JoinColumn(name = "city_id"))
-    @Builder.Default
-    private Set<CityEntity> cities = new HashSet<>();
-
-    @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(
-            name = "trip_pins",
-            joinColumns = @JoinColumn(name = "trip_id"),
-            inverseJoinColumns = @JoinColumn(name = "pin_id"))
-    @Builder.Default
-    private Set<PinEntity> pins = new HashSet<>();
 }

@@ -10,13 +10,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.time.Instant;
-import java.util.Set;
+import java.time.LocalDate;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
 import org.pinnel.pinnelapi.entity.CityEntity;
+import org.pinnel.pinnelapi.entity.TripDetailEntity;
 import org.pinnel.pinnelapi.entity.TripEntity;
 import org.pinnel.pinnelapi.entity.UserEntity;
 import org.pinnel.pinnelapi.repository.CityRepository;
+import org.pinnel.pinnelapi.repository.TripDetailRepository;
 import org.pinnel.pinnelapi.repository.TripRepository;
 import org.pinnel.pinnelapi.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,17 +46,23 @@ class UserControllerTest {
     @Autowired
     private CityRepository cityRepository;
 
+    @Autowired
+    private TripDetailRepository tripDetailRepository;
+
     @Test
     void countriesEndpointReturnsDistinctCountriesFromCallerTrips() throws Exception {
         String cognitoId = "countries-caller";
         UserEntity caller = saveUser(cognitoId, "caller@pinnel.io", "caller");
 
-        CityEntity paris = saveCity("Paris", "France");
-        CityEntity nice = saveCity("Nice", "France");
-        CityEntity rome = saveCity("Rome", "Italy");
+        CityEntity paris = saveCity("Test-Paris", "France");
+        CityEntity nice = saveCity("Test-Nice", "France");
+        CityEntity rome = saveCity("Test-Rome", "Italy");
 
-        saveTrip(caller, Set.of(paris, nice));
-        saveTrip(caller, Set.of(rome));
+        TripEntity trip1 = saveTrip(caller);
+        TripEntity trip2 = saveTrip(caller);
+        saveTripDetail(trip1, caller, paris);
+        saveTripDetail(trip1, caller, nice);
+        saveTripDetail(trip2, caller, rome);
 
         mvc.perform(get("/api/me/countries")
                         .header("X-Cognito-Id", cognitoId)
@@ -82,7 +90,8 @@ class UserControllerTest {
     void countriesEndpointDoesNotLeakCountriesFromOtherUsersTrips() throws Exception {
         String otherCognito = "other-user";
         UserEntity other = saveUser(otherCognito, "other@pinnel.io", "other");
-        saveTrip(other, Set.of(saveCity("Tokyo", "Japan")));
+        TripEntity otherTrip = saveTrip(other);
+        saveTripDetail(otherTrip, other, saveCity("Test-Tokyo", "Japan"));
 
         String cognitoId = "isolated-caller";
         saveUser(cognitoId, "iso@pinnel.io", "iso");
@@ -200,14 +209,23 @@ class UserControllerTest {
                 .build());
     }
 
-    private TripEntity saveTrip(UserEntity owner, Set<CityEntity> cities) {
+    private TripEntity saveTrip(UserEntity owner) {
         Instant now = Instant.now();
         return tripRepository.save(TripEntity.builder()
                 .name("trip-" + owner.getCognitoId() + "-" + now.toEpochMilli())
                 .user(owner)
                 .createdAt(now)
                 .updatedAt(now)
-                .cities(cities)
+                .build());
+    }
+
+    private TripDetailEntity saveTripDetail(TripEntity trip, UserEntity owner, CityEntity city) {
+        return tripDetailRepository.save(TripDetailEntity.builder()
+                .trip(trip)
+                .userId(owner.getId())
+                .visitDate(LocalDate.now())
+                .city(city)
+                .cityOrder(0)
                 .build());
     }
 }

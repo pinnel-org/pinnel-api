@@ -6,7 +6,7 @@ import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.pinnel.pinnelapi.dto.UserDto;
 import org.pinnel.pinnelapi.entity.UserEntity;
-import org.pinnel.pinnelapi.repository.TripRepository;
+import org.pinnel.pinnelapi.repository.TripDetailRepository;
 import org.pinnel.pinnelapi.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,7 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserService {
 
     private final UserRepository userRepository;
-    private final TripRepository tripRepository;
+    private final TripDetailRepository tripDetailRepository;
 
     /** Returns the existing user for the given Cognito id, or just-in-time creates one populated from the supplied email and username. */
     @Transactional
@@ -55,9 +55,9 @@ public class UserService {
         userRepository.deleteById(user.getId());
     }
 
-    /** Returns the distinct set of country names appearing across all cities of the caller's trips. */
+    /** Returns the distinct set of country names across all cities visited by the caller. */
     public Set<String> listMyCountries(UserEntity user) {
-        return tripRepository.findDistinctCountriesByUserId(user.getId());
+        return tripDetailRepository.findDistinctCountriesByUserId(user.getId());
     }
 
     /** Returns the current user's avatar bytes, or empty if no avatar is set. */

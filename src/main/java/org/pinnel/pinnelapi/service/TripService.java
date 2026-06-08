@@ -1,20 +1,11 @@
 package org.pinnel.pinnelapi.service;
 
 import java.time.Instant;
-import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
-import java.util.TreeSet;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.pinnel.pinnelapi.dto.TripDto;
-import org.pinnel.pinnelapi.entity.CityEntity;
-import org.pinnel.pinnelapi.entity.PinEntity;
 import org.pinnel.pinnelapi.entity.TripEntity;
 import org.pinnel.pinnelapi.entity.UserEntity;
-import org.pinnel.pinnelapi.repository.CityRepository;
-import org.pinnel.pinnelapi.repository.PinRepository;
 import org.pinnel.pinnelapi.repository.TripRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -26,10 +17,8 @@ import org.springframework.web.server.ResponseStatusException;
 public class TripService {
 
     private final TripRepository tripRepository;
-    private final CityRepository cityRepository;
-    private final PinRepository pinRepository;
-    private final CityService cityService;
 
+    /** Returns all trips owned by the caller ordered by repository default. */
     @Transactional(readOnly = true)
     public List<TripDto> listMine(UserEntity caller) {
         return tripRepository.findByUserId(caller.getId())
@@ -38,53 +27,44 @@ public class TripService {
                 .toList();
     }
 
+    /** Returns the caller's trip by id. 404 if missing or not the caller's. */
     @Transactional(readOnly = true)
     public TripDto getById(UserEntity caller, Long id) {
         return TripDto.from(getOwnTrip(caller, id));
     }
 
+    /** Creates a new trip owned by the caller. */
     @Transactional
     public TripDto create(UserEntity caller, TripDto request) {
         Instant now = Instant.now();
-        Set<CityEntity> cities = resolveCities(request.cityIds());
         TripEntity saved = tripRepository.save(TripEntity.builder()
                 .name(request.name())
                 .budget(request.budget())
                 .user(caller)
                 .createdAt(now)
                 .updatedAt(now)
-                .cities(cities)
-                .pins(resolvePins(request.pinIds()))
-                .coverImageUrl(resolveCoverImageUrl(cities))
                 .build());
         return TripDto.from(saved);
     }
 
+    /** Replaces the editable fields (name, budget) of the caller's trip. 404 if missing or not the caller's. */
     @Transactional
     public TripDto update(UserEntity caller, Long id, TripDto request) {
         TripEntity trip = getOwnTrip(caller, id);
         trip.setName(request.name());
         trip.setBudget(request.budget());
-        trip.setCities(resolveCities(request.cityIds()));
-        trip.setPins(resolvePins(request.pinIds()));
         trip.setUpdatedAt(Instant.now());
         tripRepository.save(trip);
         return TripDto.from(trip);
     }
 
+    /** Deletes the caller's trip. Idempotent — does nothing if the trip is missing. 404 if owned by another user. */
     @Transactional
     public void delete(UserEntity caller, Long id) {
         tripRepository.findById(id).ifPresent(trip -> {
             requireOwner(trip, caller);
             tripRepository.deleteById(id);
         });
-    }
-
-    private String resolveCoverImageUrl(Set<CityEntity> cities) {
-        return cities.stream()
-                .min(Comparator.comparing(CityEntity::getId))
-                .map(cityService::buildCoverUrl)
-                .orElse(null);
     }
 
     private TripEntity getOwnTrip(UserEntity caller, Long id) {
@@ -98,33 +78,5 @@ public class TripService {
         if (!trip.getUser().getId().equals(caller.getId())) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         }
-    }
-
-    private Set<CityEntity> resolveCities(Set<Long> ids) {
-        if (ids.isEmpty()) {
-            return new HashSet<>();
-        }
-        List<CityEntity> found = cityRepository.findAllById(ids);
-        if (found.size() != ids.size()) {
-            Set<Long> foundIds = found.stream().map(CityEntity::getId).collect(Collectors.toSet());
-            Set<Long> missing = new TreeSet<>(ids);
-            missing.removeAll(foundIds);
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown cityIds: " + missing);
-        }
-        return new HashSet<>(found);
-    }
-
-    private Set<PinEntity> resolvePins(Set<Long> ids) {
-        if (ids.isEmpty()) {
-            return new HashSet<>();
-        }
-        List<PinEntity> found = pinRepository.findAllById(ids);
-        if (found.size() != ids.size()) {
-            Set<Long> foundIds = found.stream().map(PinEntity::getId).collect(Collectors.toSet());
-            Set<Long> missing = new TreeSet<>(ids);
-            missing.removeAll(foundIds);
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown pinIds: " + missing);
-        }
-        return new HashSet<>(found);
     }
 }

@@ -20,7 +20,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.pinnel.pinnelapi.dto.UserDto;
 import org.pinnel.pinnelapi.entity.UserEntity;
-import org.pinnel.pinnelapi.repository.TripRepository;
+import org.pinnel.pinnelapi.repository.TripDetailRepository;
 import org.pinnel.pinnelapi.repository.UserRepository;
 
 @ExtendWith(MockitoExtension.class)
@@ -34,7 +34,7 @@ class UserServiceTest {
     private UserRepository userRepository;
 
     @Mock
-    private TripRepository tripRepository;
+    private TripDetailRepository tripDetailRepository;
 
     @InjectMocks
     private UserService userService;
@@ -147,7 +147,7 @@ class UserServiceTest {
 
     @Test
     void listMyCountriesReturnsEmptySetWhenUserHasNoTripsOrCities() {
-        given(tripRepository.findDistinctCountriesByUserId(USER_ID)).willReturn(Set.of());
+        given(tripDetailRepository.findDistinctCountriesByUserId(USER_ID)).willReturn(Set.of());
 
         Set<String> result = userService.listMyCountries(existing);
 
@@ -156,7 +156,7 @@ class UserServiceTest {
 
     @Test
     void listMyCountriesReturnsSingleCountryWhenAllCitiesShareOne() {
-        given(tripRepository.findDistinctCountriesByUserId(USER_ID)).willReturn(Set.of("France"));
+        given(tripDetailRepository.findDistinctCountriesByUserId(USER_ID)).willReturn(Set.of("France"));
 
         Set<String> result = userService.listMyCountries(existing);
 
@@ -166,7 +166,7 @@ class UserServiceTest {
     @Test
     void listMyCountriesReturnsAllDistinctCountriesAcrossTrips() {
         Set<String> countries = Set.of("France", "Spain", "Italy");
-        given(tripRepository.findDistinctCountriesByUserId(USER_ID)).willReturn(countries);
+        given(tripDetailRepository.findDistinctCountriesByUserId(USER_ID)).willReturn(countries);
 
         Set<String> result = userService.listMyCountries(existing);
 
@@ -175,11 +175,11 @@ class UserServiceTest {
 
     @Test
     void listMyCountriesScopesQueryToCallerId() {
-        given(tripRepository.findDistinctCountriesByUserId(USER_ID)).willReturn(Set.of());
+        given(tripDetailRepository.findDistinctCountriesByUserId(USER_ID)).willReturn(Set.of());
 
         userService.listMyCountries(existing);
 
-        verify(tripRepository).findDistinctCountriesByUserId(USER_ID);
+        verify(tripDetailRepository).findDistinctCountriesByUserId(USER_ID);
     }
 
     @Test

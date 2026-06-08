@@ -2,6 +2,7 @@ package org.pinnel.pinnelapi.repository;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Set;
 import org.pinnel.pinnelapi.entity.TripDetailEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -29,4 +30,8 @@ public interface TripDetailRepository extends JpaRepository<TripDetailEntity, Lo
     @Modifying
     @Query("DELETE FROM TripDetailEntity td WHERE td.trip.id = :tripId AND td.userId = :userId AND td.visitDate = :visitDate")
     int deleteByTripIdAndUserIdAndVisitDate(@Param("tripId") Long tripId, @Param("userId") Long userId, @Param("visitDate") LocalDate visitDate);
+
+    /** Returns the distinct set of country names across all cities visited by the given user. */
+    @Query("SELECT DISTINCT c.country FROM TripDetailEntity td JOIN td.city c WHERE td.userId = :userId")
+    Set<String> findDistinctCountriesByUserId(@Param("userId") Long userId);
 }
