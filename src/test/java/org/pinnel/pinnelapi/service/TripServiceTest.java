@@ -22,11 +22,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.pinnel.pinnelapi.dto.TripDto;
 import org.pinnel.pinnelapi.entity.CityEntity;
-import org.pinnel.pinnelapi.entity.PinEntity;
 import org.pinnel.pinnelapi.entity.TripEntity;
 import org.pinnel.pinnelapi.entity.UserEntity;
 import org.pinnel.pinnelapi.repository.CityRepository;
-import org.pinnel.pinnelapi.repository.PinRepository;
 import org.pinnel.pinnelapi.repository.TripRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
@@ -44,9 +42,6 @@ class TripServiceTest {
 
     @Mock
     private CityRepository cityRepository;
-
-    @Mock
-    private PinRepository pinRepository;
 
     @Mock
     private CityService cityService;
@@ -72,20 +67,19 @@ class TripServiceTest {
                 .createdAt(ORIGINAL_TIMESTAMP)
                 .updatedAt(ORIGINAL_TIMESTAMP)
                 .cities(Set.of(CityEntity.builder().id(10L).build()))
-                .pins(Set.of(PinEntity.builder().id(20L).build()))
                 .build();
     }
 
     private TripDto request(String name, BigDecimal budget) {
-        return request(name, budget, Set.of(), Set.of());
+        return request(name, budget, Set.of());
     }
 
-    private TripDto request(String name, BigDecimal budget, Set<Long> cityIds, Set<Long> pinIds) {
-        return new TripDto(null, name, budget, null, cityIds, pinIds, null, null, null);
+    private TripDto request(String name, BigDecimal budget, Set<Long> cityIds) {
+        return new TripDto(null, name, budget, null, cityIds, null, null, null);
     }
 
     @Test
-    void listMineReturnsCallerTripsWithCityAndPinIds() {
+    void listMineReturnsCallerTripsWithCityIds() {
         given(tripRepository.findByUserId(CALLER_ID)).willReturn(List.of(trip(TRIP_ID, caller)));
 
         List<TripDto> result = tripService.listMine(caller);
@@ -144,7 +138,6 @@ class TripServiceTest {
         assertThat(saved.getCreatedAt()).isNotNull();
         assertThat(saved.getUpdatedAt()).isEqualTo(saved.getCreatedAt());
         assertThat(saved.getCities()).isEmpty();
-        assertThat(saved.getPins()).isEmpty();
 
         assertThat(result.id()).isEqualTo(TRIP_ID);
         assertThat(result.userId()).isEqualTo(CALLER_ID);
@@ -162,15 +155,12 @@ class TripServiceTest {
     }
 
     @Test
-    void createPersistsRequestedCitiesAndPins() {
+    void createPersistsRequestedCities() {
         Long cityId1 = 10L;
         Long cityId2 = 11L;
-        Long pinId = 20L;
         CityEntity city1 = CityEntity.builder().id(cityId1).build();
         CityEntity city2 = CityEntity.builder().id(cityId2).build();
-        PinEntity pin = PinEntity.builder().id(pinId).build();
         given(cityRepository.findAllById(anyIterable())).willReturn(List.of(city1, city2));
-        given(pinRepository.findAllById(anyIterable())).willReturn(List.of(pin));
         given(tripRepository.save(any(TripEntity.class))).willAnswer(inv -> {
             TripEntity t = inv.getArgument(0);
             t.setId(TRIP_ID);
@@ -178,12 +168,11 @@ class TripServiceTest {
         });
 
         TripDto result = tripService.create(caller,
-                request("Trip A", null, Set.of(cityId1, cityId2), Set.of(pinId)));
+                request("Trip A", null, Set.of(cityId1, cityId2)));
 
         ArgumentCaptor<TripEntity> captor = ArgumentCaptor.forClass(TripEntity.class);
         verify(tripRepository).save(captor.capture());
         assertThat(captor.getValue().getCities()).containsExactlyInAnyOrder(city1, city2);
-        assertThat(captor.getValue().getPins()).containsExactly(pin);
         assertThat(result.cityIds()).containsExactlyInAnyOrder(cityId1, cityId2);
     }
 
@@ -199,7 +188,7 @@ class TripServiceTest {
         given(tripRepository.save(any(TripEntity.class))).willAnswer(inv -> inv.getArgument(0));
 
         TripDto result = tripService.create(caller,
-                request("Trip", null, Set.of(cityId1, cityId2), Set.of()));
+                request("Trip", null, Set.of(cityId1, cityId2)));
 
         assertThat(result.coverImageUrl()).isEqualTo(expectedUrl);
     }
@@ -212,24 +201,10 @@ class TripServiceTest {
                 .willReturn(List.of(CityEntity.builder().id(knownCityId).build()));
 
         assertThatThrownBy(() -> tripService.create(caller,
-                request("Trip", null, Set.of(knownCityId, missingCityId), Set.of())))
+                request("Trip", null, Set.of(knownCityId, missingCityId))))
                 .isInstanceOfSatisfying(ResponseStatusException.class, ex -> {
                     assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
                     assertThat(ex.getReason()).contains(String.valueOf(missingCityId));
-                });
-        verify(tripRepository, never()).save(any());
-    }
-
-    @Test
-    void createThrows400WhenAnyPinIdMissing() {
-        Long missingPinId = 99L;
-        given(pinRepository.findAllById(anyIterable())).willReturn(List.of());
-
-        assertThatThrownBy(() -> tripService.create(caller,
-                request("Trip", null, Set.of(), Set.of(missingPinId))))
-                .isInstanceOfSatisfying(ResponseStatusException.class, ex -> {
-                    assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-                    assertThat(ex.getReason()).contains(String.valueOf(missingPinId));
                 });
         verify(tripRepository, never()).save(any());
     }
@@ -249,7 +224,7 @@ class TripServiceTest {
     }
 
     @Test
-    void updateReplacesCitiesAndPins() {
+    void updateReplacesCities() {
         TripEntity existing = trip(TRIP_ID, caller);
         Long newCityId1 = 11L;
         Long newCityId2 = 12L;
@@ -260,10 +235,9 @@ class TripServiceTest {
         given(tripRepository.save(existing)).willAnswer(inv -> inv.getArgument(0));
 
         tripService.update(caller, TRIP_ID,
-                request("Renamed", null, Set.of(newCityId1, newCityId2), Set.of()));
+                request("Renamed", null, Set.of(newCityId1, newCityId2)));
 
         assertThat(existing.getCities()).containsExactlyInAnyOrder(newCity1, newCity2);
-        assertThat(existing.getPins()).isEmpty();
     }
 
     @Test
@@ -274,7 +248,7 @@ class TripServiceTest {
         given(cityRepository.findAllById(anyIterable())).willReturn(List.of());
 
         assertThatThrownBy(() -> tripService.update(caller, TRIP_ID,
-                request("Renamed", null, Set.of(missingCityId), Set.of())))
+                request("Renamed", null, Set.of(missingCityId))))
                 .isInstanceOfSatisfying(ResponseStatusException.class, ex -> {
                     assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
                     assertThat(ex.getReason()).contains(String.valueOf(missingCityId));
