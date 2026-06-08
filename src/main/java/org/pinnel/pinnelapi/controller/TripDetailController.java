@@ -34,9 +34,9 @@ public class TripDetailController {
     /** DELETE /api/trips/{tripId}/trip-details?date={date} — bulk-removes all details for a day. 204 always; 404 if trip missing or not caller's. */
     @DeleteMapping("/api/trips/{tripId}/trip-details")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@CurrentUser UserEntity caller,
-                       @PathVariable Long tripId,
-                       @RequestParam LocalDate date) {
+    public void deleteByDate(@CurrentUser UserEntity caller,
+                             @PathVariable Long tripId,
+                             @RequestParam LocalDate date) {
         tripDetailService.delete(caller, tripId, date);
     }
 
