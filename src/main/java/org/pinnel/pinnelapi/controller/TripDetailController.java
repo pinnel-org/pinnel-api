@@ -49,6 +49,13 @@ public class TripDetailController {
         tripDetailService.deleteByDate(caller, tripId, date);
     }
 
+    /** GET /api/trips/{tripId}/trip-details/all — returns all details ordered by visitDate then cityOrder. Returns 200 [] if none exist. */
+    @GetMapping("/api/trips/{tripId}/trip-details/all")
+    public List<TripDetailDto> listAll(@CurrentUser UserEntity caller,
+                                       @PathVariable Long tripId) {
+        return tripDetailService.listAll(caller, tripId);
+    }
+
     /** GET /api/trips/{tripId}/trip-details?date={date} — lists details for a day ordered by cityOrder. Returns 200 [] if the day was never persisted. */
     @GetMapping("/api/trips/{tripId}/trip-details")
     public List<TripDetailDto> listByDate(@CurrentUser UserEntity caller,
