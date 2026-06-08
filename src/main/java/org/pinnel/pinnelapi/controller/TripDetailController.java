@@ -27,16 +27,16 @@ public class TripDetailController {
     /** DELETE /api/trip-details/{detailId} — removes a single detail. 204 always; 404 if owned by another user. */
     @DeleteMapping("/api/trip-details/{detailId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteSingle(@CurrentUser UserEntity caller, @PathVariable Long detailId) {
+    public void delete(@CurrentUser UserEntity caller, @PathVariable Long detailId) {
         tripDetailService.deleteSingle(caller, detailId);
     }
 
     /** DELETE /api/trips/{tripId}/trip-details?date={date} — bulk-removes all details for a day. 204 always; 404 if trip missing or not caller's. */
     @DeleteMapping("/api/trips/{tripId}/trip-details")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteByDate(@CurrentUser UserEntity caller,
-                             @PathVariable Long tripId,
-                             @RequestParam LocalDate date) {
+    public void delete(@CurrentUser UserEntity caller,
+                       @PathVariable Long tripId,
+                       @RequestParam LocalDate date) {
         tripDetailService.deleteByDate(caller, tripId, date);
     }
 
