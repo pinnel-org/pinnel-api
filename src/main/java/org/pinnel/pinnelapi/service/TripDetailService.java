@@ -66,6 +66,36 @@ public class TripDetailService {
         }
     }
 
+    /**
+     * Moves a trip_detail to a new cityOrder within its day and renumbers all siblings to a dense 0..n-1 sequence.
+     * Order is clamped silently if too large; negative order returns 400. 404 if missing or not the caller's.
+     */
+    @Transactional
+    public TripDetailDto updateOrder(UserEntity caller, Long detailId, int newOrder) {
+        if (newOrder < 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "order must be >= 0");
+        }
+        TripDetailEntity detail = tripDetailRepository.findById(detailId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        if (!detail.getUserId().equals(caller.getId())) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        }
+
+        List<TripDetailEntity> siblings = tripDetailRepository
+                .findByTrip_IdAndUserIdAndVisitDateOrderByCityOrder(
+                        detail.getTrip().getId(), caller.getId(), detail.getVisitDate());
+
+        int clamped = Math.min(newOrder, siblings.size() - 1);
+        siblings.remove(detail);
+        siblings.add(clamped, detail);
+        for (int i = 0; i < siblings.size(); i++) {
+            siblings.get(i).setCityOrder(i);
+        }
+        tripDetailRepository.saveAll(siblings);
+
+        return TripDetailDto.from(detail);
+    }
+
     /** Bulk-deletes all details for a given (tripId, date). 404 if trip missing or not the caller's. */
     @Transactional
     public void deleteByDate(UserEntity caller, Long tripId, LocalDate date) {

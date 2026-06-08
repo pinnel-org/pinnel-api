@@ -202,6 +202,72 @@ class TripDetailServiceTest {
     }
 
     @Test
+    void updateOrderMovesDetailAndRenumbersSiblings() {
+        TripDetailEntity d0 = buildDetail(1L, 0);
+        TripDetailEntity d1 = buildDetail(DETAIL_ID, 1);
+        TripDetailEntity d2 = buildDetail(3L, 2);
+        given(tripDetailRepository.findById(DETAIL_ID)).willReturn(Optional.of(d1));
+        given(tripDetailRepository.findByTrip_IdAndUserIdAndVisitDateOrderByCityOrder(TRIP_ID, CALLER_ID, VISIT_DATE))
+                .willReturn(new java.util.ArrayList<>(List.of(d0, d1, d2)));
+
+        TripDetailDto result = tripDetailService.updateOrder(caller, DETAIL_ID, 0);
+
+        assertThat(d1.getCityOrder()).isEqualTo(0);
+        assertThat(d0.getCityOrder()).isEqualTo(1);
+        assertThat(d2.getCityOrder()).isEqualTo(2);
+        assertThat(result.cityOrder()).isEqualTo(0);
+        verify(tripDetailRepository).saveAll(any());
+    }
+
+    @Test
+    void updateOrderClampsWhenOrderExceedsBound() {
+        TripDetailEntity d0 = buildDetail(1L, 0);
+        TripDetailEntity d1 = buildDetail(DETAIL_ID, 1);
+        given(tripDetailRepository.findById(DETAIL_ID)).willReturn(Optional.of(d1));
+        given(tripDetailRepository.findByTrip_IdAndUserIdAndVisitDateOrderByCityOrder(TRIP_ID, CALLER_ID, VISIT_DATE))
+                .willReturn(new java.util.ArrayList<>(List.of(d0, d1)));
+
+        tripDetailService.updateOrder(caller, DETAIL_ID, 99);
+
+        assertThat(d1.getCityOrder()).isEqualTo(1);
+        assertThat(d0.getCityOrder()).isEqualTo(0);
+    }
+
+    @Test
+    void updateOrderThrows400WhenOrderNegative() {
+        assertThatThrownBy(() -> tripDetailService.updateOrder(caller, DETAIL_ID, -1))
+                .isInstanceOfSatisfying(ResponseStatusException.class,
+                        ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST));
+        verify(tripDetailRepository, never()).findById(any());
+    }
+
+    @Test
+    void updateOrderThrows404WhenDetailMissing() {
+        given(tripDetailRepository.findById(DETAIL_ID)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> tripDetailService.updateOrder(caller, DETAIL_ID, 0))
+                .isInstanceOfSatisfying(ResponseStatusException.class,
+                        ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
+    }
+
+    @Test
+    void updateOrderThrows404WhenOwnedByAnotherUser() {
+        TripDetailEntity detail = buildDetail(DETAIL_ID, 0);
+        detail.setUserId(OTHER_USER_ID);
+        given(tripDetailRepository.findById(DETAIL_ID)).willReturn(Optional.of(detail));
+
+        assertThatThrownBy(() -> tripDetailService.updateOrder(caller, DETAIL_ID, 0))
+                .isInstanceOfSatisfying(ResponseStatusException.class,
+                        ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND));
+        verify(tripDetailRepository, never()).saveAll(any());
+    }
+
+    private TripDetailEntity buildDetail(Long id, int order) {
+        return TripDetailEntity.builder().id(id).trip(trip).userId(CALLER_ID)
+                .visitDate(VISIT_DATE).city(city).cityOrder(order).build();
+    }
+
+    @Test
     void deleteRemovesDetailWhenOwner() {
         given(tripDetailRepository.existsById(DETAIL_ID)).willReturn(true);
         given(tripDetailRepository.deleteByIdAndUserId(DETAIL_ID, CALLER_ID)).willReturn(1);

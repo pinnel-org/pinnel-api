@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -23,6 +24,14 @@ import org.springframework.web.bind.annotation.RestController;
 public class TripDetailController {
 
     private final TripDetailService tripDetailService;
+
+    /** PUT /api/trip-details/{detailId}/city-order/{order} — reorders a city within its day; renumbers all siblings to 0..n-1. */
+    @PutMapping("/api/trip-details/{detailId}/city-order/{order}")
+    public TripDetailDto updateOrder(@CurrentUser UserEntity caller,
+                                     @PathVariable Long detailId,
+                                     @PathVariable int order) {
+        return tripDetailService.updateOrder(caller, detailId, order);
+    }
 
     /** DELETE /api/trip-details/{detailId} — removes a single detail. 204 always; 404 if owned by another user. */
     @DeleteMapping("/api/trip-details/{detailId}")
