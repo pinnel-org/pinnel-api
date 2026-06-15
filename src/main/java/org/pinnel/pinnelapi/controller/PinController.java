@@ -7,6 +7,7 @@ import org.pinnel.pinnelapi.auth.CurrentUser;
 import org.pinnel.pinnelapi.dto.PinDto;
 import org.pinnel.pinnelapi.entity.UserEntity;
 import org.pinnel.pinnelapi.service.PinService;
+import org.pinnel.pinnelapi.service.YouTubeShortsService;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,6 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class PinController {
 
     private final PinService pinService;
+    private final YouTubeShortsService youTubeShortsService;
 
     /** GET /api/pins?cityId={id} — lists pins in the city visible to the caller (curated + public + caller's own private). */
     @GetMapping
@@ -36,6 +38,12 @@ public class PinController {
     @GetMapping("/{id}")
     public PinDto getById(@CurrentUser UserEntity caller, @PathVariable Long id) {
         return pinService.getById(id, caller);
+    }
+
+    /** GET /api/pins/{id}/shorts — YouTube video ids of short clips about the pin's place. 404 if the pin isn't visible or has no shorts; 502 if YouTube is unavailable. */
+    @GetMapping("/{id}/shorts")
+    public List<String> getShorts(@CurrentUser UserEntity caller, @PathVariable Long id) {
+        return youTubeShortsService.findShortsForPin(id, caller);
     }
 
     /** POST /api/pins — creates a pin owned by the caller. */
