@@ -1,8 +1,7 @@
 package org.pinnel.pinnelapi.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
 import org.pinnel.pinnelapi.dto.CityDto;
 import org.pinnel.pinnelapi.dto.PinDto;
@@ -58,7 +57,7 @@ public class YouTubeShortsService {
         return videoIds;
     }
 
-    private JsonNode search(Long pinId, String query) {
+    private SearchResponse search(Long pinId, String query) {
         try {
             return restClient.get()
                     .uri(uri -> uri.path("/search")
@@ -71,7 +70,7 @@ public class YouTubeShortsService {
                             .queryParam("key", apiKey)
                             .build())
                     .retrieve()
-                    .body(JsonNode.class);
+                    .body(SearchResponse.class);
         } catch (Exception e) {
             log.error("YouTube search.list failed for pin {} (query=\"{}\"). "
                     + "If this is a 403, the daily quota may be exhausted (each search costs 100 units).",
@@ -80,17 +79,25 @@ public class YouTubeShortsService {
         }
     }
 
-    private static List<String> extractVideoIds(JsonNode response) {
-        List<String> ids = new ArrayList<>();
-        if (response == null) {
-            return ids;
+    private static List<String> extractVideoIds(SearchResponse response) {
+        if (response == null || response.items() == null) {
+            return List.of();
         }
-        for (JsonNode item : response.path("items")) {
-            String videoId = item.path("id").path("videoId").asText(null);
-            if (videoId != null && !videoId.isBlank()) {
-                ids.add(videoId);
-            }
-        }
-        return ids;
+        return response.items().stream()
+                .map(SearchResponse.Item::id)
+                .filter(Objects::nonNull)
+                .map(SearchResponse.Id::videoId)
+                .filter(id -> id != null && !id.isBlank())
+                .toList();
+    }
+
+    /**
+     * Subset of the YouTube {@code search.list} response we care about. Unknown fields (snippet,
+     * pageInfo, …) are ignored by Jackson's default lenient deserialization.
+     */
+    private record SearchResponse(List<Item> items) {
+        private record Item(Id id) {}
+
+        private record Id(String videoId) {}
     }
 }
