@@ -57,7 +57,7 @@ class PinServiceTest {
         city = CityEntity.builder().id(CITY_ID).name("Paris").country("France").build();
         ReflectionTestUtils.setField(pinService, "cdnBaseUrl", "https://cdn.example");
         ReflectionTestUtils.setField(pinService, "pinLogoPathTemplate",
-                "/pinnel-cities-logos/countries/{country}/cities/{city}/pins-logo/{pin}/{size}/logo.jpg");
+                "/countries/{country}/cities/{city}/pins-logo/{pin}/{size}/logo.jpg");
     }
 
     private PinEntity pin(Long id, UserEntity owner, boolean isPublic) {
@@ -111,9 +111,9 @@ class PinServiceTest {
         assertThat(result.id()).isEqualTo(PIN_ID);
         assertThat(result.userId()).isNull();
         assertThat(result.logoUrlSmall()).isEqualTo(
-                "https://cdn.example/pinnel-cities-logos/countries/france/cities/paris/pins-logo/eiffel-tower/small/logo.jpg");
+                "https://cdn.example/countries/france/cities/paris/pins-logo/eiffel-tower/small/logo.jpg");
         assertThat(result.logoUrlBig()).isEqualTo(
-                "https://cdn.example/pinnel-cities-logos/countries/france/cities/paris/pins-logo/eiffel-tower/big/logo.jpg");
+                "https://cdn.example/countries/france/cities/paris/pins-logo/eiffel-tower/big/logo.jpg");
     }
 
     @Test
