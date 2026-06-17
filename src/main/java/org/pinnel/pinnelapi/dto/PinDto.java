@@ -19,9 +19,11 @@ public record PinDto(
         @NotNull Long cityId,
         Long userId,
         Instant createdAt,
-        Instant updatedAt
+        Instant updatedAt,
+        String logoUrlSmall,
+        String logoUrlBig
 ) {
-    public static PinDto from(PinEntity pin) {
+    public static PinDto from(PinEntity pin, String logoUrlSmall, String logoUrlBig) {
         return new PinDto(
                 pin.getId(),
                 pin.getName(),
@@ -32,7 +34,9 @@ public record PinDto(
                 pin.getCity().getId(),
                 pin.getUser() != null ? pin.getUser().getId() : null,
                 pin.getCreatedAt(),
-                pin.getUpdatedAt()
+                pin.getUpdatedAt(),
+                logoUrlSmall,
+                logoUrlBig
         );
     }
 }

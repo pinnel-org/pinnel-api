@@ -9,6 +9,7 @@ import org.pinnel.pinnelapi.entity.PinEntity;
 import org.pinnel.pinnelapi.entity.UserEntity;
 import org.pinnel.pinnelapi.repository.CityRepository;
 import org.pinnel.pinnelapi.repository.PinRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,11 +22,17 @@ public class PinService {
     private final PinRepository pinRepository;
     private final CityRepository cityRepository;
 
+    @Value("${pinnel.cdn.base-url}")
+    private String cdnBaseUrl;
+
+    @Value("${pinnel.cdn.pin-logo-path-template}")
+    private String pinLogoPathTemplate;
+
     /** Lists pins in a city visible to the caller: curated pins, public user-created pins, and the caller's own private pins. */
     public List<PinDto> listByCity(Long cityId, UserEntity caller) {
         return pinRepository.findVisibleByCityId(cityId, caller.getId())
                 .stream()
-                .map(PinDto::from)
+                .map(this::toDto)
                 .toList();
     }
 
@@ -35,7 +42,7 @@ public class PinService {
         if (!isVisibleTo(pin, caller)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         }
-        return PinDto.from(pin);
+        return toDto(pin);
     }
 
     /** Creates a pin owned by the caller in the referenced city. Throws 404 if the city does not exist. */
@@ -54,7 +61,7 @@ public class PinService {
                 .createdAt(now)
                 .updatedAt(now)
                 .build());
-        return PinDto.from(saved);
+        return toDto(saved);
     }
 
     /**
@@ -78,7 +85,7 @@ public class PinService {
         pin.setPublic(request.isPublic());
         pin.setCity(city);
         pin.setUpdatedAt(Instant.now());
-        return PinDto.from(pinRepository.save(pin));
+        return toDto(pinRepository.save(pin));
     }
 
     /**
@@ -91,6 +98,24 @@ public class PinService {
             requireEditable(pin, caller);
             pinRepository.deleteById(id);
         });
+    }
+
+    private PinDto toDto(PinEntity pin) {
+        return PinDto.from(pin, buildLogoUrl(pin, "small"), buildLogoUrl(pin, "big"));
+    }
+
+    /** Builds the CDN URL for a pin's logo at the given size ("small"/"big"), from the slugified country, city and pin names — same convention as city covers. */
+    private String buildLogoUrl(PinEntity pin, String size) {
+        String path = pinLogoPathTemplate
+                .replace("{country}", slugify(pin.getCity().getCountry()))
+                .replace("{city}", slugify(pin.getCity().getName()))
+                .replace("{pin}", slugify(pin.getName()))
+                .replace("{size}", size);
+        return cdnBaseUrl + path;
+    }
+
+    private static String slugify(String name) {
+        return name.toLowerCase().replaceAll("[^a-z0-9]+", "-").replaceAll("(^-|-$)", "");
     }
 
     private PinEntity getPin(Long id) {
