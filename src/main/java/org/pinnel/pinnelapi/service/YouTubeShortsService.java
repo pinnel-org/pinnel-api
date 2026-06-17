@@ -48,16 +48,18 @@ public class YouTubeShortsService {
     public List<String> findShortsForPin(Long pinId, UserEntity caller) {
         PinDto pin = pinService.getById(pinId, caller);
         CityDto city = cityService.getById(pin.cityId());
-        String query = "%s %s %s travel".formatted(pin.name(), city.name(), city.country());
+        // Country (an ISO 3166-1 alpha-2 code, e.g. "UA") is passed as regionCode, not jammed into the
+        // query text where it reads as noise and hurts relevance.
+        String query = "%s %s travel".formatted(pin.name(), city.name());
 
-        List<String> videoIds = extractVideoIds(search(pinId, query));
+        List<String> videoIds = extractVideoIds(search(pinId, query, city.country()));
         if (videoIds.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No shorts found for this pin");
         }
         return videoIds;
     }
 
-    private SearchResponse search(Long pinId, String query) {
+    private SearchResponse search(Long pinId, String query, String regionCode) {
         try {
             return restClient.get()
                     .uri(uri -> uri.path("/search")
@@ -66,6 +68,7 @@ public class YouTubeShortsService {
                             .queryParam("type", "video")
                             .queryParam("videoDuration", "short")
                             .queryParam("videoEmbeddable", "true")
+                            .queryParam("regionCode", regionCode)
                             .queryParam("maxResults", maxResults)
                             .queryParam("key", apiKey)
                             .build())
