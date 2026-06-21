@@ -25,6 +25,7 @@ import org.pinnel.pinnelapi.entity.UserEntity;
 import org.pinnel.pinnelapi.repository.CityRepository;
 import org.pinnel.pinnelapi.repository.PinRepository;
 import org.springframework.http.HttpStatus;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.server.ResponseStatusException;
 
 @ExtendWith(MockitoExtension.class)
@@ -54,6 +55,9 @@ class PinServiceTest {
         caller = UserEntity.builder().id(CALLER_ID).cognitoId("caller").username("caller").build();
         otherUser = UserEntity.builder().id(OTHER_USER_ID).cognitoId("other").username("other").build();
         city = CityEntity.builder().id(CITY_ID).name("Paris").country("France").build();
+        ReflectionTestUtils.setField(pinService, "cdnBaseUrl", "https://cdn.example");
+        ReflectionTestUtils.setField(pinService, "pinLogoPathTemplate",
+                "/countries/{country}/cities/{city}/pins-logo/{pin}/{size}/logo.jpg");
     }
 
     private PinEntity pin(Long id, UserEntity owner, boolean isPublic) {
@@ -80,7 +84,7 @@ class PinServiceTest {
                 new BigDecimal("2.294500"),
                 isPublic,
                 cityId,
-                null, null, null
+                null, null, null, null, null
         );
     }
 
@@ -106,6 +110,10 @@ class PinServiceTest {
 
         assertThat(result.id()).isEqualTo(PIN_ID);
         assertThat(result.userId()).isNull();
+        assertThat(result.logoUrlSmall()).isEqualTo(
+                "https://cdn.example/countries/france/cities/paris/pins-logo/eiffel-tower/small/logo.jpg");
+        assertThat(result.logoUrlBig()).isEqualTo(
+                "https://cdn.example/countries/france/cities/paris/pins-logo/eiffel-tower/big/logo.jpg");
     }
 
     @Test
@@ -194,7 +202,7 @@ class PinServiceTest {
                 new BigDecimal("2.000000"),
                 false,
                 CITY_ID,
-                null, null, null
+                null, null, null, null, null
         );
 
         PinDto result = pinService.update(caller, PIN_ID, update);
@@ -219,7 +227,7 @@ class PinServiceTest {
                 null, "n", "d",
                 new BigDecimal("41.000000"), new BigDecimal("12.000000"),
                 false, 99L,
-                null, null, null
+                null, null, null, null, null
         );
 
         pinService.update(caller, PIN_ID, update);
