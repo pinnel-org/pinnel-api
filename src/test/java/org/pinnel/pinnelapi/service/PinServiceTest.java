@@ -61,6 +61,8 @@ class PinServiceTest {
                 .id(id)
                 .name("Eiffel Tower")
                 .overview("Iron lattice tower")
+                .visitorTips("Visitor Tips")
+                .history("History")
                 .latitude(new BigDecimal("48.858400"))
                 .longitude(new BigDecimal("2.294500"))
                 .isPublic(isPublic)
@@ -192,8 +194,8 @@ class PinServiceTest {
                 null,
                 "Renamed",
                 "New overview",
-                null,
-                null,
+                "New visitor tips",
+                "New history",
                 new BigDecimal("48.000000"),
                 new BigDecimal("2.000000"),
                 false,
@@ -205,6 +207,8 @@ class PinServiceTest {
 
         assertThat(existing.getName()).isEqualTo("Renamed");
         assertThat(existing.getOverview()).isEqualTo("New overview");
+        assertThat(existing.getVisitorTips()).isEqualTo("New visitor tips");
+        assertThat(existing.getHistory()).isEqualTo("New history");
         assertThat(existing.getLatitude()).isEqualByComparingTo("48.000000");
         assertThat(existing.getLongitude()).isEqualByComparingTo("2.000000");
         assertThat(existing.getUpdatedAt()).isAfter(ORIGINAL_TIMESTAMP);
