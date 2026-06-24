@@ -60,7 +60,7 @@ class PinServiceTest {
         return PinEntity.builder()
                 .id(id)
                 .name("Eiffel Tower")
-                .description("Iron lattice tower")
+                .overview("Iron lattice tower")
                 .latitude(new BigDecimal("48.858400"))
                 .longitude(new BigDecimal("2.294500"))
                 .isPublic(isPublic)
@@ -76,6 +76,8 @@ class PinServiceTest {
                 null,
                 "Eiffel Tower",
                 "Iron lattice tower",
+                null,
+                null,
                 new BigDecimal("48.858400"),
                 new BigDecimal("2.294500"),
                 isPublic,
@@ -189,7 +191,9 @@ class PinServiceTest {
         PinDto update = new PinDto(
                 null,
                 "Renamed",
-                "New description",
+                "New overview",
+                null,
+                null,
                 new BigDecimal("48.000000"),
                 new BigDecimal("2.000000"),
                 false,
@@ -200,7 +204,7 @@ class PinServiceTest {
         PinDto result = pinService.update(caller, PIN_ID, update);
 
         assertThat(existing.getName()).isEqualTo("Renamed");
-        assertThat(existing.getDescription()).isEqualTo("New description");
+        assertThat(existing.getOverview()).isEqualTo("New overview");
         assertThat(existing.getLatitude()).isEqualByComparingTo("48.000000");
         assertThat(existing.getLongitude()).isEqualByComparingTo("2.000000");
         assertThat(existing.getUpdatedAt()).isAfter(ORIGINAL_TIMESTAMP);
@@ -216,7 +220,7 @@ class PinServiceTest {
         given(pinRepository.save(existing)).willAnswer(inv -> inv.getArgument(0));
 
         PinDto update = new PinDto(
-                null, "n", "d",
+                null, "n", "d", null, null,
                 new BigDecimal("41.000000"), new BigDecimal("12.000000"),
                 false, 99L,
                 null, null, null
