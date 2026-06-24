@@ -34,7 +34,13 @@ public class PinEntity {
     private String name;
 
     @Column(length = 2000)
-    private String description;
+    private String overview;
+
+    @Column(name = "visitor_tips", length = 2000)
+    private String visitorTips;
+
+    @Column(length = 2000)
+    private String history;
 
     @Column(nullable = false, precision = 9, scale = 6)
     private BigDecimal latitude;

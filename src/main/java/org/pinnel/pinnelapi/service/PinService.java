@@ -45,7 +45,9 @@ public class PinService {
         Instant now = Instant.now();
         PinEntity saved = pinRepository.save(PinEntity.builder()
                 .name(request.name())
-                .description(request.description())
+                .overview(request.overview())
+                .visitorTips(request.visitorTips())
+                .history(request.history())
                 .latitude(request.latitude())
                 .longitude(request.longitude())
                 .isPublic(request.isPublic())
@@ -72,7 +74,9 @@ public class PinService {
                 : getCity(request.cityId());
 
         pin.setName(request.name());
-        pin.setDescription(request.description());
+        pin.setOverview(request.overview());
+        pin.setVisitorTips(request.visitorTips());
+        pin.setHistory(request.history());
         pin.setLatitude(request.latitude());
         pin.setLongitude(request.longitude());
         pin.setPublic(request.isPublic());
