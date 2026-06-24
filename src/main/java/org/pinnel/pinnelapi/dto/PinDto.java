@@ -12,7 +12,9 @@ import org.pinnel.pinnelapi.entity.PinEntity;
 public record PinDto(
         Long id,
         @NotBlank @Size(max = 120) String name,
-        @NotNull @Size(max = 2000) String description,
+        @Size(max = 2000) String overview,
+        @Size(max = 2000) String visitorTips,
+        @Size(max = 2000) String history,
         @NotNull @DecimalMin("-90") @DecimalMax("90") BigDecimal latitude,
         @NotNull @DecimalMin("-180") @DecimalMax("180") BigDecimal longitude,
         @NotNull Boolean isPublic,
@@ -27,7 +29,9 @@ public record PinDto(
         return new PinDto(
                 pin.getId(),
                 pin.getName(),
-                pin.getDescription(),
+                pin.getOverview(),
+                pin.getVisitorTips(),
+                pin.getHistory(),
                 pin.getLatitude(),
                 pin.getLongitude(),
                 pin.isPublic(),
